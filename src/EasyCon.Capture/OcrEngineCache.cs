@@ -27,6 +27,9 @@ public sealed class OcrEngineCache : IDisposable
     /// <summary>最近一次 OCR 调用的置信度 (0~100)</summary>
     public int LastConfidence { get; set; }
 
+    /// <summary>Latest FRLG diagnostic; reset on every OCR call.</summary>
+    public Ocr.Frlg.FrlgReadResult? LastFrlgResult { get; set; }
+
     /// <summary>
     /// 默认 tessdata / 模型目录路径。
     /// 当 GetOrInit 触发自动初始化时使用此路径。

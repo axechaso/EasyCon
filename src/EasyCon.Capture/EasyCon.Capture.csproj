@@ -10,6 +10,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+        <EmbeddedResource Include="Ocr\Frlg\Resources\DialogDigits\*.png" LogicalName="Frlg/DialogDigits/%(Filename)%(Extension)" />
+        <EmbeddedResource Include="Ocr\Frlg\Resources\Digits\*.png" LogicalName="Frlg/Digits/%(Filename)%(Extension)" />
+        <EmbeddedResource Include="Ocr\Frlg\Resources\LevelDigits\*.png" LogicalName="Frlg/LevelDigits/%(Filename)%(Extension)" />
 		<ProjectReference Include="..\EzCv\EzCv.csproj" />
 		<ProjectReference Include="..\EzTesseract\EzTesseract.csproj" />
 	</ItemGroup>
