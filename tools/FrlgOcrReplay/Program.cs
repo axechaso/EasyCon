@@ -6,9 +6,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 
+if (args.Contains("--list-scenes"))
+{
+    Console.WriteLine(JsonSerializer.Serialize(FrlgScenes.All, new JsonSerializerOptions { WriteIndented = true }));
+    return 0;
+}
 if (args.Length < 2 || args.Contains("--help"))
 {
-    Console.WriteLine("FrlgOcrReplay IMAGE FRLG_JPN_TID|FRLG_EN_TID [--roi x,y,w,h] [--expected 02104] [--output DIR] [--repeat 100]");
+    Console.WriteLine("FrlgOcrReplay IMAGE SCENE [--roi x,y,w,h] [--expected TEXT] [--output DIR] [--repeat 100]\nUse --list-scenes for supported keys. Name targets: FRLG_JPN_NAME:ミニリュウ|ハクリュー");
     return args.Contains("--help") ? 0 : 2;
 }
 try
@@ -44,7 +49,7 @@ try
     if (output != null)
     {
         Directory.CreateDirectory(output);
-        FrlgOcr.ReadFrame(frame, roi, scene, output);
+        FrlgOcr.ReadFrame(frame, roi, scene, output, cache.FrlgText);
     }
     double[] warm = durations.Skip(1).Order().ToArray();
     object report = new

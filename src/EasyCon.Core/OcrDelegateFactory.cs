@@ -48,7 +48,8 @@ public static class OcrDelegateFactory
         cache.LastFrlgResult = null;
         if (FrlgOcr.IsScene(lang))
         {
-            FrlgReadResult result = FrlgOcr.ReadFrame(frame, new Rect(x, y, w, h), lang);
+            FrlgReadResult result = FrlgOcr.ReadFrame(frame, new Rect(x, y, w, h), lang,
+                textReader: FrlgScenes.Find(lang)!.IsText ? cache.FrlgText : null);
             cache.LastFrlgResult = result;
             cache.LastConfidence = result.Quality;
             return result.Text;

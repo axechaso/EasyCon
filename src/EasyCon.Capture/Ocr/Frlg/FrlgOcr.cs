@@ -12,7 +12,8 @@ public sealed record FrlgReadAttempt(int Threshold, string Text, string Failure,
 public sealed record FrlgReadResult(string Scene, string Text, string Failure, int Quality,
     double ElapsedMilliseconds, FrlgReadAttempt[] Attempts)
 {
-    public bool Success => Failure.Length == 0 && Text.Length == 5;
+    public bool Success => Failure.Length == 0 && Text.Length != 0;
+    public FrlgTextAttempt[] TextAttempts { get; init; } = [];
 }
 
 /// <summary>FRLG scene routing. Coordinates supplied to OCR are capture-frame pixels.</summary>
@@ -20,27 +21,18 @@ public static class FrlgOcr
 {
     public const string JapaneseTid = "FRLG_JPN_TID";
     public const string EnglishTid = "FRLG_EN_TID";
-    public const string Version = "170a-frlg-tid-r1";
+    public const string Version = "170a-frlg-jpn-r2";
 
-    public static bool IsScene(string scene) => scene == JapaneseTid || scene == EnglishTid;
+    public static bool IsScene(string scene) => FrlgScenes.Find(scene) != null;
 
     /// <summary>PokemonAutomation's default Switch game box composed with its TID region.</summary>
     public static Rect DefaultRegion(string scene, int width, int height)
     {
-        if (!IsScene(scene))
-            throw new ArgumentException("Unsupported FRLG scene.", nameof(scene));
-        double x = scene == JapaneseTid ? 0.712981 : 0.742683;
-        double y = scene == JapaneseTid ? 0.118836 : 0.117314;
-        double w = scene == JapaneseTid ? 0.207212 : 0.129734;
-        double h = scene == JapaneseTid ? 0.077373 : 0.076006;
-        int padding = Math.Max(1, (int)Math.Ceiling(4.0 * height / 1080));
-        return new Rect((int)((0.09375 + x * 0.8125) * width) - padding,
-            (int)((0.00462963 + y * 0.962963) * height) - padding,
-            (int)Math.Round(w * 0.8125 * width) + 2 * padding,
-            (int)Math.Round(h * 0.962963 * height) + 2 * padding);
+        return FrlgScenes.DefaultRegion(scene, width, height);
     }
 
-    public static FrlgReadResult ReadFrame(Mat? frame, Rect region, string scene, string? debugDirectory = null)
+    public static FrlgReadResult ReadFrame(Mat? frame, Rect region, string scene, string? debugDirectory = null,
+        FrlgTextReader? textReader = null)
     {
         Stopwatch timer = Stopwatch.StartNew();
         FrlgReadResult Fail(string reason) => new(scene, "", reason, 0, timer.Elapsed.TotalMilliseconds, []);
@@ -70,7 +62,15 @@ public static class FrlgOcr
         using Mat normalized = new();
         Cv2.Resize(roi.Channels() == 3 ? roi : color, normalized, new Size(width, height));
 
-        FrlgReadAttempt[] attempts = FrlgDigitReader.Read(normalized, debugDirectory);
+        FrlgSceneDefinition definition = FrlgScenes.Find(scene)!;
+        if (!definition.IsText && scene.Contains(':')) return Fail("invalid-scene-options");
+        if (definition.IsText)
+        {
+            if (textReader != null) return textReader.Read(normalized, scene, debugDirectory);
+            using FrlgTextReader reader = new();
+            return reader.Read(normalized, scene, debugDirectory);
+        }
+        FrlgReadAttempt[] attempts = FrlgDigitReader.Read(normalized, debugDirectory, definition);
         FrlgReadAttempt[] accepted = attempts.Where(a => a.Failure.Length == 0).ToArray();
         string[] candidates = accepted.Select(a => a.Text).Distinct(StringComparer.Ordinal).ToArray();
         string failure = candidates.Length > 1 ? "threshold-conflict"

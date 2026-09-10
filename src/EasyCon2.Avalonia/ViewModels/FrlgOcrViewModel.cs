@@ -15,12 +15,14 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
 {
     private readonly Func<byte[]?> _capture;
     private Mat? _frame;
+    private readonly FrlgTextReader _textReader = new();
     private bool _disposed;
     [ObservableProperty] private Bitmap? _frameImage;
     [ObservableProperty] private string _sourceDescription = "先冻结采集画面，或打开一张截图。";
-    [ObservableProperty] private string _status = "拖动鼠标，只框住五位 TID 数字，边缘留少量空白。";
+    [ObservableProperty] private string _status = "选择场景，再框住需要读取的文字或数字，边缘留少量空白。";
     [ObservableProperty] private string _resultText = "等待识别";
-    [ObservableProperty] private string _details = "本版支持日版和英文训练家卡 TID。名称、性格和能力值将在后续版本接入。";
+    [ObservableProperty] private string _details = "支持日文名称、性格、等级、六项能力值及日英 TID。名称和性格首次读取需要加载模型。";
+    [ObservableProperty] private string _targetNames = "";
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private int _x;
     [ObservableProperty] private int _y;
@@ -28,11 +30,7 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _regionHeight;
     [ObservableProperty] private FrlgSceneChoice _selectedScene;
 
-    public FrlgSceneChoice[] Scenes { get; } =
-    [
-        new("日版 · 训练家卡 TID", FrlgOcr.JapaneseTid),
-        new("英文 · 训练家卡 TID", FrlgOcr.EnglishTid)
-    ];
+    public FrlgSceneChoice[] Scenes { get; } = FrlgScenes.All.Select(s => new FrlgSceneChoice(s.Label, s.Key)).ToArray();
 
     public FrlgOcrViewModel(Func<byte[]?>? capture = null)
     {
@@ -52,7 +50,9 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string OcrCall => $"OCR({X}, {Y}, {RegionWidth}, {RegionHeight}, \"{SelectedScene.Key}\")";
+    public bool IsNameScene => FrlgScenes.Find(SelectedScene.Key)!.Kind == "name";
+    private string SceneCall => SelectedScene.Key + (IsNameScene && !string.IsNullOrWhiteSpace(TargetNames) ? ":" + TargetNames.Trim() : "");
+    public string OcrCall => $"OCR({X}, {Y}, {RegionWidth}, {RegionHeight}, \"{SceneCall}\")";
     public int FrameWidth => _frame?.Width ?? 0;
     public int FrameHeight => _frame?.Height ?? 0;
 
@@ -61,10 +61,12 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
     partial void OnRegionWidthChanged(int value) => RegionChanged();
     partial void OnRegionHeightChanged(int value) => RegionChanged();
     partial void OnSelectedSceneChanged(FrlgSceneChoice value) => RegionChanged();
+    partial void OnTargetNamesChanged(string value) => RegionChanged();
     private void RegionChanged()
     {
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(OcrCall));
+        OnPropertyChanged(nameof(IsNameScene));
         ResultText = "等待识别";
         Details = "区域或场景已修改，请重新读取选区。";
     }
@@ -128,22 +130,24 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
     private async Task RecognizeAsync()
     {
         if (_frame == null) { Status = "请先加载画面。"; return; }
-        if (RegionWidth <= 0 || RegionHeight <= 0) { Status = "请先框选五位 TID 数字。"; return; }
+        if (RegionWidth <= 0 || RegionHeight <= 0) { Status = "请先框选当前场景的文字或数字。"; return; }
         using Mat snapshot = _frame.Clone();
         Rect region = new(X, Y, RegionWidth, RegionHeight);
-        string scene = SelectedScene.Key;
+        string scene = SceneCall;
         IsBusy = true;
         ResultText = "识别中";
         Details = "";
         try
         {
-            FrlgReadResult result = await Task.Run(() => FrlgOcr.ReadFrame(snapshot, region, scene));
+            FrlgReadResult result = await Task.Run(() => FrlgOcr.ReadFrame(snapshot, region, scene, textReader: _textReader));
             if (_disposed) return;
             ResultText = result.Success ? result.Text : "未识别";
             Status = result.Success
-                ? $"完整五位 TID · {result.ElapsedMilliseconds:F1} ms · 请刷新快照后再次确认"
+                ? $"{SelectedScene.Label} · {result.ElapsedMilliseconds:F1} ms · 请刷新快照后再次确认"
                 : $"读取失败（{result.Failure}）。请检查区域、遮挡或画面清晰度。";
-            Details = string.Join(Environment.NewLine, result.Attempts.Select(a =>
+            Details = result.TextAttempts.Length > 0 ? string.Join(Environment.NewLine, result.TextAttempts.Select(a =>
+                $"{a.Backend} / {a.Threshold}：[{a.Raw.Trim()}] → {(a.Accepted ? a.Candidate : "未确认")} · {a.Confidence:P0} / 距离 {a.Distance} {a.Failure}"))
+                : string.Join(Environment.NewLine, result.Attempts.Select(a =>
                 $"阈值 {a.Threshold}：{(a.Failure.Length == 0 ? a.Text : a.Failure)}" + Environment.NewLine
                 + string.Join("  |  ", a.Digits.Select(d => $"{d.Digit}：误差 {d.Rmsd:F1} / 差距 {d.RunnerUpRmsd - d.Rmsd:F1}"))));
         }
@@ -161,10 +165,12 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
     public string ExportRegion()
     {
         if (_frame == null) throw new InvalidOperationException("请先加载画面。");
+        if (IsNameScene && !FrlgJapaneseLexicon.ValidTargets(FrlgScenes.Targets(SceneCall)))
+            throw new InvalidOperationException("候选名称须为词典中的日文种族名或英文 slug，用 | 分隔。");
         if (X < 0 || Y < 0 || RegionWidth <= 0 || RegionHeight <= 0
             || (long)X + RegionWidth > FrameWidth || (long)Y + RegionHeight > FrameHeight)
             throw new InvalidOperationException("请选择画面内的有效区域。");
-        return JsonSerializer.Serialize(new FrlgRegionProfile(SelectedScene.Key, FrameWidth, FrameHeight,
+        return JsonSerializer.Serialize(new FrlgRegionProfile(SceneCall, FrameWidth, FrameHeight,
             X, Y, RegionWidth, RegionHeight), new JsonSerializerOptions { WriteIndented = true });
     }
 
@@ -174,12 +180,16 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
             ?? throw new InvalidDataException("区域文件为空。");
         if (_frame == null || profile.FrameWidth != FrameWidth || profile.FrameHeight != FrameHeight)
             throw new InvalidDataException("请先加载与保存区域相同分辨率的画面。");
-        FrlgSceneChoice scene = Scenes.FirstOrDefault(s => s.Key == profile.Scene)
+        FrlgSceneChoice scene = Scenes.FirstOrDefault(s => s.Key == FrlgScenes.BaseKey(profile.Scene))
             ?? throw new InvalidDataException("不支持此识别场景。");
+        string[] targets = FrlgScenes.Targets(profile.Scene);
+        if (targets.Length > 0 && (FrlgScenes.Find(scene.Key)!.Kind != "name" || !FrlgJapaneseLexicon.ValidTargets(targets)))
+            throw new InvalidDataException("区域文件的名称候选无效。");
         if (profile.X < 0 || profile.Y < 0 || profile.Width <= 0 || profile.Height <= 0
             || (long)profile.X + profile.Width > FrameWidth || (long)profile.Y + profile.Height > FrameHeight)
             throw new InvalidDataException("区域超出画面。");
         SelectedScene = scene;
+        TargetNames = string.Join('|', FrlgScenes.Targets(profile.Scene));
         Selection = new UiRect(profile.X, profile.Y, profile.Width, profile.Height);
         Status = "已恢复保存的区域。";
     }
@@ -193,5 +203,6 @@ public sealed partial class FrlgOcrViewModel : ObservableObject, IDisposable
         bitmap?.Dispose();
         _frame?.Dispose();
         _frame = null;
+        _textReader.Dispose();
     }
 }

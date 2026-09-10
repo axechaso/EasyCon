@@ -13,6 +13,8 @@ internal static class FrlgDigitReader
     private sealed record Component(Rect Bounds, int Area);
 
     private static readonly Lazy<DigitTemplate[]> _dialogTemplates = new(() => LoadTemplates("DialogDigits"));
+    private static readonly Lazy<DigitTemplate[]> _statTemplates = new(() => LoadTemplates("Digits"));
+    private static readonly Lazy<DigitTemplate[]> _levelTemplates = new(() => LoadTemplates("LevelDigits"));
     private static readonly int[] _thresholds = [175, 190, 205];
     private const double MaxRmsd = 85;
     private const double MinMargin = 8;
@@ -36,24 +38,40 @@ internal static class FrlgDigitReader
         return templates;
     }
 
-    internal static FrlgReadAttempt[] Read(Mat image, string? debugDirectory)
+    internal static FrlgReadAttempt[] Read(Mat image, string? debugDirectory, FrlgSceneDefinition definition)
     {
+        using Mat prepared = image.Clone();
+        if (definition.Kind == "level")
+        {
+            byte[] pixels = ReadPixels(prepared);
+            for (int i = 0; i < pixels.Length; i += 3)
+            {
+                int b = pixels[i], g = pixels[i + 1], r = pixels[i + 2];
+                if (b > g + 25 && r > g + 15)
+                { pixels[i] = 240; pixels[i + 1] = 176; pixels[i + 2] = 209; }
+                else if (r > 200 && g > 200 && b > 200)
+                { pixels[i] = pixels[i + 1] = pixels[i + 2] = 0; }
+            }
+            CopyPixels(prepared, pixels, 3);
+        }
         using Mat firstBlur = new();
         using Mat blurred = new();
-        Cv2.GaussianBlur(image, firstBlur, new Size(5, 5), 1.5);
+        Cv2.GaussianBlur(prepared, firstBlur, new Size(5, 5), 1.5);
         Cv2.GaussianBlur(firstBlur, blurred, new Size(5, 5), 1.5);
         byte[] blurredPixels = ReadPixels(blurred);
-        byte[] original = ReadPixels(image);
+        byte[] original = ReadPixels(prepared);
         if (debugDirectory != null)
         {
             Directory.CreateDirectory(debugDirectory);
             File.WriteAllBytes(Path.Combine(debugDirectory, "normalized.png"), image.ToBytes());
             File.WriteAllBytes(Path.Combine(debugDirectory, "blurred.png"), blurred.ToBytes());
         }
-        return _thresholds.Select(threshold => ReadThreshold(image, original, blurredPixels, threshold, debugDirectory)).ToArray();
+        int[] thresholds = definition.Kind == "level" ? [112, 127, 142] : _thresholds;
+        return thresholds.Select(threshold => ReadThreshold(prepared, original, blurredPixels, threshold, debugDirectory, definition)).ToArray();
     }
 
-    private static FrlgReadAttempt ReadThreshold(Mat image, byte[] original, byte[] blurred, int threshold, string? debugDirectory)
+    private static FrlgReadAttempt ReadThreshold(Mat image, byte[] original, byte[] blurred, int threshold, string? debugDirectory,
+        FrlgSceneDefinition definition)
     {
         int width = image.Width;
         int height = image.Height;
@@ -75,15 +93,23 @@ internal static class FrlgDigitReader
         FrlgReadAttempt Fail(string reason) => new(threshold, "", reason, matches.ToArray());
         if (allComponents.Count > 128)
             return Fail("too-many-components");
-        if (components.Length == 0 || components.Length > 5)
+        int maxDigits = definition.Kind == "tid" ? 5 : definition.Kind == "hp" ? 7 : 3;
+        if (components.Length == 0 || components.Length > maxDigits)
             return Fail("component-count");
+        int? slashIndex = null;
         foreach (Component component in components)
         {
             Rect box = component.Bounds;
             if (box.X == 0 || box.Y == 0 || box.X + box.Width == width || box.Y + box.Height == height)
                 return Fail("clipped-glyph");
+            if (definition.Kind == "hp" && IsSlash(original, width, box))
+            {
+                if (slashIndex != null) return Fail("multiple-hp-separators");
+                slashIndex = matches.Count;
+                continue;
+            }
             int expectedDigits = Math.Max(1, (int)Math.Ceiling((double)box.Width / box.Height / 0.6 - 0.5));
-            if (expectedDigits > 5 || matches.Count + expectedDigits > 5)
+            if (expectedDigits > maxDigits || matches.Count + expectedDigits > maxDigits)
                 return Fail("merged-component-count");
             int splitWidth = box.Width / expectedDigits;
             for (int split = 0; split < expectedDigits; split++)
@@ -92,7 +118,9 @@ internal static class FrlgDigitReader
                 int right = split == expectedDigits - 1 ? box.X + box.Width : x + splitWidth;
                 Rect glyph = Tighten(original, width, new Rect(x, box.Y, right - x, box.Height));
                 using Mat crop = new(image, glyph);
-                (int Digit, double Score)[] scores = _dialogTemplates.Value
+                DigitTemplate[] templates = definition.Kind == "level" ? _levelTemplates.Value
+                    : definition.Kind is "stat" or "hp" ? _statTemplates.Value : _dialogTemplates.Value;
+                (int Digit, double Score)[] scores = templates
                     .Select((template, digit) => (Digit: digit, Score: Rmsd(crop, template)))
                     .OrderBy(item => item.Score).ToArray();
                 FrlgDigitMatch match = new(scores[0].Digit, glyph, scores[0].Score, scores[1].Score);
@@ -100,13 +128,13 @@ internal static class FrlgDigitReader
                 if (debugDirectory != null)
                     File.WriteAllBytes(Path.Combine(debugDirectory, $"digit-{threshold}-{matches.Count}.png"), crop.ToBytes());
                 // Never silently drop a digit and concatenate the remainder.
-                if (match.Rmsd > MaxRmsd)
+                if (match.Rmsd > (definition.Kind == "tid" ? MaxRmsd : 105))
                     return Fail("poor-template-match");
                 if (match.RunnerUpRmsd - match.Rmsd < MinMargin)
                     return Fail("ambiguous-digit");
             }
         }
-        if (matches.Count != 5)
+        if (matches.Count == 0 || definition.Kind == "tid" && matches.Count != 5)
             return Fail("digit-count");
         int minHeight = matches.Min(d => d.Bounds.Height);
         int maxHeight = matches.Max(d => d.Bounds.Height);
@@ -119,8 +147,45 @@ internal static class FrlgDigitReader
                 return Fail("overlapping-glyphs");
         }
         string text = string.Concat(matches.Select(d => (char)('0' + d.Digit)));
-        string failure = FrlgOcr.ValidateDigits(text);
+        string failure;
+        if (definition.Kind == "tid") failure = FrlgOcr.ValidateDigits(text);
+        else
+        {
+            if (slashIndex is int separator)
+            {
+                if (separator < 1 || separator > 3 || text.Length - separator is < 1 or > 3)
+                    return Fail("invalid-hp-pair");
+                string current = text[..separator];
+                text = text[separator..];
+                if (int.Parse(current) > int.Parse(text)) return Fail("hp-current-exceeds-maximum");
+            }
+            failure = text.Length > 3 || text.Length > 1 && text[0] == '0' ? "invalid-number-length"
+                : !int.TryParse(text, out int value) || value < definition.Minimum || value > definition.Maximum
+                    ? "number-out-of-range" : "";
+        }
         return new FrlgReadAttempt(threshold, failure.Length == 0 ? text : "", failure, matches.ToArray());
+    }
+
+    private static bool IsSlash(byte[] pixels, int width, Rect box)
+    {
+        // A slash is a thin, consistently diagonal stroke; digit 1 is vertical and 2 has horizontal caps.
+        List<(double X, double Y)> rows = [];
+        for (int y = box.Y; y < box.Y + box.Height; y++)
+        {
+            List<int> xs = [];
+            for (int x = box.X; x < box.X + box.Width; x++)
+            {
+                int i = (y * width + x) * 3;
+                if (pixels[i] < 140 && pixels[i + 1] < 140 && pixels[i + 2] < 140) xs.Add(x);
+            }
+            if (xs.Count > 0) rows.Add((xs.Average(), y));
+        }
+        if (rows.Count < box.Height * .7) return false;
+        double meanX = rows.Average(p => p.X), meanY = rows.Average(p => p.Y);
+        double cov = rows.Sum(p => (p.X - meanX) * (p.Y - meanY));
+        double varX = rows.Sum(p => (p.X - meanX) * (p.X - meanX));
+        double varY = rows.Sum(p => (p.Y - meanY) * (p.Y - meanY));
+        return varX > 0 && varY > 0 && cov / varY < -.25 && cov * cov / (varX * varY) > .92;
     }
 
     private static List<Component> Components(bool[] pixels, int width, int height)
@@ -229,7 +294,7 @@ internal static class FrlgDigitReader
         return mean;
     }
 
-    private static byte[] ReadPixels(Mat image)
+    internal static byte[] ReadPixels(Mat image)
     {
         int rowBytes = image.Width * 3;
         byte[] pixels = new byte[rowBytes * image.Height];
@@ -241,7 +306,7 @@ internal static class FrlgDigitReader
         return pixels;
     }
 
-    private static void CopyPixels(Mat image, byte[] pixels, int channels)
+    internal static void CopyPixels(Mat image, byte[] pixels, int channels)
     {
         int rowBytes = image.Width * channels;
         IntPtr data = image.Data;

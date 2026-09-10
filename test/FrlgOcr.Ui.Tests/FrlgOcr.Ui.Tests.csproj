@@ -10,5 +10,6 @@
     <PackageReference Include="NUnit3TestAdapter" />
     <ProjectReference Include="../../src/EasyCon2.Avalonia/EasyCon2.Avalonia.csproj" />
     <None Include="../EasyCon.Tests/TestData/Frlg/*" Link="TestData/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../EasyCon.Tests/TestData/Frlg/Page1/*.png" Link="TestData/Page1/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

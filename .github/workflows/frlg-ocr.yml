@@ -25,8 +25,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Verify pinned resources
-        run: python tools/FrlgOcrReplay/fetch_resources.py --verify
+      - name: Fetch and verify pinned models and resources
+        run: python tools/FrlgOcrReplay/fetch_resources.py
       - name: Build
         run: dotnet build EasyCon2.slnx -c Release
       - name: Verify formatting
@@ -38,8 +38,8 @@ jobs:
         run: ./tools/FrlgOcrReplay/publish.ps1 -OutputDirectory artifacts/release/publish
       - uses: actions/upload-artifact@v7
         with:
-          name: EasyCon-170a-FRLG-OCR-TID-r1-win-x64
-          path: artifacts/release/EasyCon-170a-FRLG-OCR-TID-r1-win-x64.zip
+          name: EasyCon-170a-FRLG-OCR-JPN-r2-win-x64
+          path: artifacts/release/EasyCon-170a-FRLG-OCR-JPN-r2-win-x64.zip
       - uses: actions/upload-artifact@v7
         if: always()
         with:

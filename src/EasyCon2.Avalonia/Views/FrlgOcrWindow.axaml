@@ -8,11 +8,11 @@
         Width="1120" Height="820" MinWidth="880" MinHeight="700">
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18" RowSpacing="12">
     <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
-      <TextBlock Text="框选区域，读取 TID" FontSize="22" FontWeight="SemiBold" />
+      <TextBlock Text="框选区域，读取日文 FRLG 场景" FontSize="22" FontWeight="SemiBold" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Content="冻结采集画面" Command="{Binding CaptureCommand}" />
         <Button Content="打开截图…" Click="OpenImage_Click" />
-        <ComboBox ItemsSource="{Binding Scenes}" SelectedItem="{Binding SelectedScene}" MinWidth="230">
+        <ComboBox ItemsSource="{Binding Scenes}" SelectedItem="{Binding SelectedScene}" Width="290">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="vm:FrlgSceneChoice"><TextBlock Text="{Binding Label}" /></DataTemplate>
           </ComboBox.ItemTemplate>
@@ -20,6 +20,8 @@
         <Button Content="默认区域" Command="{Binding DefaultRegionCommand}" />
         <Button Content="读取选区" Command="{Binding RecognizeCommand}" />
       </StackPanel>
+      <TextBox Text="{Binding TargetNames}" IsVisible="{Binding IsNameScene}"
+               PlaceholderText="可选：限制名称候选，例如 ミニリュウ|ハクリュー；留空使用全量日文词典" />
       <TextBlock Text="{Binding SourceDescription}" Opacity="0.7" />
     </StackPanel>
     <Border Grid.Row="1" BorderBrush="#66708090" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
@@ -41,8 +43,8 @@
       </Grid>
     </StackPanel>
     <Border Grid.Row="3" BorderBrush="#44708090" BorderThickness="1" CornerRadius="6" Padding="12">
-      <Grid ColumnDefinitions="155,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
-        <TextBlock Text="{Binding ResultText}" FontFamily="Consolas" FontSize="30" FontWeight="Bold" />
+      <Grid ColumnDefinitions="210,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+        <TextBlock Text="{Binding ResultText}" FontSize="26" FontWeight="Bold" TextWrapping="Wrap" />
         <TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
         <TextBox Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Details}" IsReadOnly="True"
                  AcceptsReturn="True" TextWrapping="Wrap" Height="108" FontSize="11" />

@@ -110,4 +110,40 @@ public sealed class RegionPickerTests
             Assert.That(native.Y, Is.EqualTo(270).Within(0.001));
         }
     }
+
+    [AvaloniaTest]
+    public async Task JapaneseNameSelectionTargetsAndRenderingAsync()
+    {
+        using FrlgOcrViewModel vm = new();
+        vm.LoadImage(File.ReadAllBytes(Path.Combine(TestContext.CurrentContext.TestDirectory,
+            "TestData", "Page1", "bulbasaur_1_jpn.png")), "上游日文摘要截图");
+        vm.SelectedScene = vm.Scenes.Single(s => s.Key == "FRLG_JPN_SUMMARY_NAME");
+        vm.TargetNames = "フシギダネ|ハクリュー";
+        vm.DefaultRegionCommand.Execute(null);
+        string profile = vm.ExportRegion();
+        vm.TargetNames = "";
+        vm.ImportRegion(profile);
+        Assert.That(vm.OcrCall, Does.Contain("FRLG_JPN_SUMMARY_NAME:フシギダネ|ハクリュー"));
+        FrlgOcrWindow window = new() { DataContext = vm };
+        window.Show();
+        try
+        {
+            await vm.RecognizeCommand.ExecuteAsync(null);
+            Assert.That(vm.ResultText, Is.EqualTo("フシギダネ"), vm.Details);
+            Assert.That(vm.Details, Does.Contain("PaddleOCR"));
+            Dispatcher.UIThread.RunJobs();
+            using RenderTargetBitmap rendered = new(new PixelSize(1120, 820));
+            rendered.Render(window);
+            string output = Environment.GetEnvironmentVariable("FRLG_JPN_UI_SCREENSHOT")
+                ?? Path.Combine(TestContext.CurrentContext.WorkDirectory, "frlg-jpn-window.png");
+            rendered.Save(output);
+            vm.SelectedScene = vm.Scenes.Single(s => s.Key == "FRLG_JPN_NATURE");
+            Assert.That(vm.ResultText, Is.EqualTo("等待识别"));
+            Assert.That(vm.OcrCall, Does.Not.Contain("フシギダネ"));
+            vm.DefaultRegionCommand.Execute(null);
+            await vm.RecognizeCommand.ExecuteAsync(null);
+            Assert.That(vm.ResultText, Is.EqualTo("のうてんき"), vm.Details);
+        }
+        finally { window.Close(); }
+    }
 }

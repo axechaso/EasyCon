@@ -3,9 +3,23 @@
     "EasyConNS/EasyCon": "1aed001c0e2d3a32d211c39bec26546741626bd6",
     "PokemonAutomation/Arduino-Source": "a772133ebc497aed05439f464a6222d3d83e0c10",
     "PokemonAutomation/Packages": "e8cc29cdc9e9c16faf406a1d154d70ad687b375c",
-    "PokemonAutomation/CommandLineTests": "46b892bd7f2106a1f34de11aa300b492aee06b83"
+    "PokemonAutomation/CommandLineTests": "46b892bd7f2106a1f34de11aa300b492aee06b83",
+    "PaddlePaddle/PaddleOCR": "2661c7c0ef5c613e8f93c6e93b2e052399f0f854",
+    "tesseract-ocr/tessdata": "ced78752cc61322fb554c280d13360b35b8684e4"
   },
   "files": [
+    {
+      "path": "docs/licenses/PaddleOCR-Apache-2.0.txt",
+      "source": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/2661c7c0ef5c613e8f93c6e93b2e052399f0f854/LICENSE",
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e",
+      "bytes": 11376
+    },
+    {
+      "path": "docs/licenses/TesseractData-Apache-2.0.txt",
+      "source": "https://raw.githubusercontent.com/tesseract-ocr/tessdata/ced78752cc61322fb554c280d13360b35b8684e4/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
     {
       "path": "src/EasyCon.Capture/Ocr/Frlg/Resources/Digits/0.png",
       "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PokemonFRLG/Digits/0.png",
@@ -203,6 +217,114 @@
       "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/TrainerIdReader/tom_eng_60895.jpg",
       "sha256": "7aabaf0bdd904653a5b8db99a29e2159abb6909e9113601d5497c2b2583b5e04",
       "bytes": 182453
+    },
+    {
+      "path": "src/EasyCon.Capture/Ocr/Frlg/Resources/Text/PokemonNameDisplay.json",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/Pokemon/PokemonNameDisplay.json",
+      "sha256": "5131b8e7c2919cf6763a540bec38e25fe8b8d3525982d99d4cfa855790d2c764",
+      "bytes": 304179
+    },
+    {
+      "path": "src/EasyCon.Capture/Ocr/Frlg/Resources/Text/PokemonOCR-jpn.json",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/Pokemon/PokemonNameOCR/PokemonOCR-jpn.json",
+      "sha256": "7901ccbecc1f1edf4c470f1e4d86b582901dbddb7aa24719e4be45c0ab9865f5",
+      "bytes": 53263
+    },
+    {
+      "path": "src/EasyCon.Capture/Ocr/Frlg/Resources/Text/NatureCheckerOCR.json",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PokemonFRLG/NatureCheckerOCR.json",
+      "sha256": "b272481bc0d8147a97f9f99196edcf33b00183a1a31d2d06ab7cc9c126433f3f",
+      "bytes": 6217
+    },
+    {
+      "path": "src/EasyCon.Capture/Ocr/Frlg/Resources/Text/CharacterReductions.json",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/OCR/CharacterReductions.json",
+      "sha256": "73324c761d4a602d5362977966997d46d95961307a2e07750319c1824533f2fa",
+      "bytes": 303
+    },
+    {
+      "path": "models/frlg/chinese/rec.onnx",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PaddleOCR/chinese/rec.onnx",
+      "sha256": "26fa4f47060f58e25962b9af6beaee05c8182b90e026c4ecc6db165d9dfdc38a",
+      "bytes": 84468836
+    },
+    {
+      "path": "models/frlg/chinese/dict.txt",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PaddleOCR/chinese/dict.txt",
+      "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
+      "bytes": 74012
+    },
+    {
+      "path": "models/frlg/chinese/config.json",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PaddleOCR/chinese/config.json",
+      "sha256": "12cb91770e4da0ded935c97f47dc758bef56e5461be24b0b43fc0e4d5dea3878",
+      "bytes": 1145
+    },
+    {
+      "path": "models/frlg/PaddleOCR-README.md",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/PaddleOCR/README.md",
+      "sha256": "e92ef69580611b4659d5f884bde5fb69b4ff35bea60bd8220871c816d4b9c2a2",
+      "bytes": 192
+    },
+    {
+      "path": "models/frlg/tessdata/jpn.traineddata",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/Tesseract/jpn.traineddata",
+      "sha256": "6f416b902d129d8cc28e99c33244034b1cf52549e8560f6320b06d317852159a",
+      "bytes": 35659159
+    },
+    {
+      "path": "models/frlg/Tesseract-README.md",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/Packages/e8cc29cdc9e9c16faf406a1d154d70ad687b375c/Resources/Tesseract/README.md",
+      "sha256": "b635a2a6758c83ab77961582af836e8d010c492ff416b317c8ee2c7095d628b5",
+      "bytes": 1039
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page1/bulbasaur_1_jpn.png",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page1/bulbasaur_1_jpn.png",
+      "sha256": "08b3d097f41d872b148712c1f0e128eecd4a58e43ee4f990d2cedd5bfb5dfdea",
+      "bytes": 395352
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page1/_bulbasaur_1_jpn.txt",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page1/_bulbasaur_1_jpn.txt",
+      "sha256": "3dc5a4492bfb59c9478247e48b3eb2bb1c85a5af822db198579d23685d6da6c4",
+      "bytes": 21
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page1/deoxys_1_jpn.png",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page1/deoxys_1_jpn.png",
+      "sha256": "4855ff99da683839f7fe6f514cb6fb57234504331b6f9f8e83fa2f8ab270b6b1",
+      "bytes": 807030
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page1/_deoxys_1_jpn.txt",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page1/_deoxys_1_jpn.txt",
+      "sha256": "c8c111cc29f207d0d52a6ec53289bba37ded9212403ef9fb29f8de095c3d88ce",
+      "bytes": 29
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page2/deoxys_1_jpn.png",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page2/deoxys_1_jpn.png",
+      "sha256": "f98158669067439d8d175b1df7333fa9cf181dad23529cf4abdc2f9ff5dcae69",
+      "bytes": 919063
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Page2/_deoxys_1_jpn.txt",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/StatsReader/Page2/_deoxys_1_jpn.txt",
+      "sha256": "4a59b648005eda6b9ef7315ff7637975ff2968e64166baa7f4a9b54d1aff4e1c",
+      "bytes": 21
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Wild/eng_dragonair.jpg",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/WildEncounterReader/eng_dragonair.jpg",
+      "sha256": "c94f5f7f818a66d73826f592dbc5486ba81023cba4dd85bde59b118353d5269a",
+      "bytes": 154252
+    },
+    {
+      "path": "test/EasyCon.Tests/TestData/Frlg/Wild/eng_chansey.jpg",
+      "source": "https://raw.githubusercontent.com/PokemonAutomation/CommandLineTests/46b892bd7f2106a1f34de11aa300b492aee06b83/PokemonFRLG/WildEncounterReader/eng_chansey.jpg",
+      "sha256": "197cd9538bf7963a7b854e6ebe26948e14cfee710782048f1183966a7a58ddfe",
+      "bytes": 159594
     }
   ]
 }
