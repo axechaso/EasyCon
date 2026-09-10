@@ -16,7 +16,8 @@ public static class FrlgScenes
         new("FRLG_EN_TID", "英文 · 训练家卡 TID", "tid", .742683, .117314, .129734, .076006, 0, 65535),
         new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .075, .120, .232, .063),
         new("FRLG_JPN_SUMMARY_NAME", "日版 · 摘要种族名称", "name", .688942, .210577, .261538, .069231),
-        new("FRLG_JPN_NATURE", "日版 · 性格", "nature", .048718, .752884, .458205, .064423),
+        // Include raised dakuten (e.g. さみしがり) without entering the memo heading above.
+        new("FRLG_JPN_NATURE", "日版 · 性格", "nature", .048718, .747116, .458205, .070192),
         new("FRLG_JPN_LEVEL", "日版 · 摘要等级", "level", .060256, .116346, .124359, .075962, 2, 100),
         new("FRLG_JPN_WILD_LEVEL", "日版 · 野生等级（只框数字）", "wild-level", .369, .120, .045, .063, 2, 100),
         new("FRLG_JPN_HP", "日版 · 最大 HP（支持当前/最大）", "hp", .717165, .131662, .269632, .066876, 1, 714),

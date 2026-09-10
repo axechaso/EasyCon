@@ -37,10 +37,14 @@ public sealed class FrlgTextReader : IDisposable
             string[] targets = FrlgScenes.Targets(scene);
             if (targets.Length > 0 && (nature || !FrlgJapaneseLexicon.ValidTargets(targets)))
                 return Result("", "invalid-target-set");
-            if (TouchesInk(image)) return Result("", "clipped-text");
+            // Short natures leave the met-level clause inside the fixed-width region.
+            // Split only at a word-sized gap, then require a nature descriptor in the retained clause.
+            using Mat clause = nature ? FirstNatureClause(image) : image.Clone();
+            bool splitClause = clause.Width != image.Width;
+            if (TouchesInk(clause)) return Result("", "clipped-text");
 
             using Mat resized = new();
-            Cv2.Resize(image, resized, new Size(Math.Max(1, image.Width * 69 / image.Height), 69));
+            Cv2.Resize(clause, resized, new Size(Math.Max(1, clause.Width * 69 / clause.Height), 69));
             // White padding keeps blur from turning a complete top diacritic into an apparent clipped glyph.
             using Mat padded = PadWhite(resized, 6);
             using Mat blur = new();
@@ -73,6 +77,8 @@ public sealed class FrlgTextReader : IDisposable
                 foreach ((int threshold, Mat variant) in variants)
                     ReadVariant("Tesseract", threshold, variant);
                 FrlgTextAttempt[] secondary = attempts.Where(a => a.Backend == "Tesseract" && a.Accepted).ToArray();
+                if (nature && NatureConfirmedByBothBackends(paddle, secondary))
+                    return Result(primary[0], "", (int)(secondary.Average(a => a.Confidence) * 100));
                 string[] confirmed = secondary.GroupBy(a => a.Candidate).Where(g => g.Count() >= 2
                     && (primary.Contains(g.Key) || primary.Length == 0 && g.Count(a => a.Distance == 0 && a.Confidence >= .70) >= 2))
                     .Select(g => g.Key).ToArray();
@@ -88,7 +94,7 @@ public sealed class FrlgTextReader : IDisposable
                 try
                 {
                     OcrRecognizeResult raw = backend == "PaddleOCR" ? Paddle(variant) : Tesseract(variant);
-                    FrlgWordMatch match = FrlgJapaneseLexicon.Match(raw.Text, nature, targets);
+                    FrlgWordMatch match = FrlgJapaneseLexicon.Match(raw.Text, nature, targets, splitClause);
                     attempts.Add(new(backend, threshold, raw.Text, raw.Confidence, match.Text, match.Distance,
                         match.Accepted && raw.Confidence >= (match.Distance == 0 ? .55 : .75), ""));
                 }
@@ -196,6 +202,53 @@ public sealed class FrlgTextReader : IDisposable
                 if (pixels[i] < 96 && pixels[i + 1] < 96 && pixels[i + 2] < 96 && ++count >= 2) return true;
             }
         return false;
+    }
+
+    internal static bool NatureConfirmedByBothBackends(FrlgTextAttempt[] primary, FrlgTextAttempt[] secondary)
+    {
+        FrlgTextAttempt[] paddle = primary.Where(a => a.Accepted && a.Backend == "PaddleOCR").ToArray();
+        FrlgTextAttempt[] tesseract = secondary.Where(a => a.Accepted && a.Backend == "Tesseract").ToArray();
+        // Exact readings from both engines, plus another strong primary vote, can confirm a nature.
+        // A single fuzzy vote or a conflicting accepted candidate cannot satisfy this rule.
+        return paddle.Any(a => a.Distance == 0 && a.Confidence >= .90)
+            && paddle.Count(a => a.Distance <= 1 && a.Confidence >= .85) >= 2
+            && tesseract.Any(a => a.Distance == 0 && a.Confidence >= .70)
+            && paddle.Concat(tesseract).Select(a => a.Candidate).Distinct().Count() == 1;
+    }
+
+    private static Mat FirstNatureClause(Mat image)
+    {
+        byte[] pixels = FrlgDigitReader.ReadPixels(image);
+        bool[] inkColumns = new bool[image.Width];
+        int top = image.Height, bottom = -1, first = image.Width;
+        for (int y = 0; y < image.Height; y++)
+            for (int x = 0; x < image.Width; x++)
+            {
+                int i = (y * image.Width + x) * 3;
+                if (pixels[i] >= 96 || pixels[i + 1] >= 96 || pixels[i + 2] >= 96) continue;
+                inkColumns[x] = true;
+                top = Math.Min(top, y);
+                bottom = Math.Max(bottom, y);
+                first = Math.Min(first, x);
+            }
+        int glyphHeight = bottom - top + 1;
+        if (glyphHeight < 12) return image.Clone();
+        int gapStart = -1;
+        for (int x = first; x < image.Width; x++)
+        {
+            if (!inkColumns[x])
+            {
+                if (gapStart < 0) gapStart = x;
+                continue;
+            }
+            if (gapStart >= 0 && x - gapStart >= glyphHeight * .7 && gapStart - first >= glyphHeight * 2)
+            {
+                using Mat crop = new(image, new Rect(0, 0, (gapStart + x) / 2, image.Height));
+                return crop.Clone();
+            }
+            gapStart = -1;
+        }
+        return image.Clone();
     }
 
     public void Dispose()
