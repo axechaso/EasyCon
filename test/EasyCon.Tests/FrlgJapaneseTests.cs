@@ -188,6 +188,21 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
+    public void NameConfirmationAcceptsExactPlusIndependentHighConfidenceFuzzyVote()
+    {
+        FrlgTextAttempt exact = new("PaddleOCR", 184, "クラブ", .77, "クラブ", 0, true, "");
+        FrlgTextAttempt supporting = new("PaddleOCR", 160, "ワラブ", .90, "クラブ", 1, true, "");
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting]), Is.True);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting with { Confidence = .84 }]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact with { Confidence = .69 }, supporting]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting with { Threshold = 184 }]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
+            [exact, supporting with { Candidate = "ラブカス" }]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
+            [exact with { Distance = 1 }, supporting]), Is.False);
+    }
+
+    [Test]
     public void KanaVoicingCorrectionPreservesRealSpeciesAndTargetRestrictions()
     {
         foreach ((string raw, string expected) in new[] { ("サンター", "サンダー"), ("ラブラス", "ラプラス") })

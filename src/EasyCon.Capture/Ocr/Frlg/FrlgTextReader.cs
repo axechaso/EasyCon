@@ -72,7 +72,8 @@ public sealed class FrlgTextReader : IDisposable
                 FrlgTextAttempt[] paddle = attempts.Where(a => a.Accepted).ToArray();
                 string[] primary = paddle.Select(a => a.Candidate).Distinct().ToArray();
                 // Require two strong, complete, consistent primary reads; otherwise obtain a second opinion.
-                if (primary.Length == 1 && paddle.Count(a => a.Confidence >= .80 && a.Distance == 0) >= 2)
+                if (primary.Length == 1 && (paddle.Count(a => a.Confidence >= .80 && a.Distance == 0) >= 2
+                    || !nature && NameConfirmedByPrimaryVariants(paddle)))
                     return Result(primary[0], "", (int)(paddle.Average(a => a.Confidence) * 100));
                 foreach ((int threshold, Mat variant) in variants)
                     ReadVariant("Tesseract", threshold, variant);
@@ -101,6 +102,17 @@ public sealed class FrlgTextReader : IDisposable
                 catch (Exception ex) { attempts.Add(new(backend, threshold, "", 0, "", 99, false, ex.Message)); }
             }
         }
+    }
+
+    internal static bool NameConfirmedByPrimaryVariants(FrlgTextAttempt[] primary)
+    {
+        FrlgTextAttempt[] paddle = primary.Where(a => a.Accepted && a.Backend == "PaddleOCR").ToArray();
+        if (paddle.Select(a => a.Candidate).Distinct().Count() != 1) return false;
+        // A complete exact read may be slightly below 80% on small kana. Accept it only when a
+        // different threshold independently reaches the same dictionary entry at high confidence.
+        return paddle.Any(exact => exact.Distance == 0 && exact.Confidence >= .70
+            && paddle.Any(support => support.Threshold != exact.Threshold
+                && support.Distance <= 1 && support.Confidence >= .85));
     }
 
     private OcrRecognizeResult Tesseract(Mat image)

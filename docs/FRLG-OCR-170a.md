@@ -1,6 +1,6 @@
 # FRLG OCR 170a 增强测试版 · TID 第一阶段
 
-本文件保留 r1 历史说明。当前 r3 日文场景版请阅读 [FRLG-JPN-170a.md](FRLG-JPN-170a.md)。
+本文件保留 r1 历史说明。当前 r4 日文场景版请阅读 [FRLG-JPN-170a.md](FRLG-JPN-170a.md)。
 
 本版基于 EasyCon `1aed001c0e2d3a32d211c39bec26546741626bd6`。GUI、CLI 与截图回放工具使用同一套 FRLG 数字管线。版本显示为 `1.7.0-alpha.frlg-tid.1`，配置与缓存存放在程序旁的独立 `FRLG-OCR-Data` 目录。请解压到可写目录，例如 D 盘；不读取或覆盖原版用户配置。
 

@@ -35,7 +35,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $ocrOnnxFolder 'ThirdPartyNotices.txt') -Destination (Join-Path $ocrPublishDirectory 'licenses/OnnxRuntime-ThirdPartyNotices.txt')
     $ocrCommit = & git rev-parse HEAD
     [ordered]@{
-        version = '170a-frlg-jpn-r3'
+        version = '170a-frlg-jpn-r4'
         easyconBaseline = '1aed001c0e2d3a32d211c39bec26546741626bd6'
         sourceCommit = $ocrCommit
         sourceUrl = "https://github.com/axechaso/EasyCon/tree/$ocrCommit"
@@ -48,7 +48,7 @@ try {
         [ordered]@{ path = [IO.Path]::GetRelativePath($ocrPublishDirectory, $ocrFile.FullName); sha256 = (Get-FileHash -LiteralPath $ocrFile.FullName -Algorithm SHA256).Hash; bytes = $ocrFile.Length }
     }
     $ocrManifest | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $ocrPublishDirectory 'SHA256.json') -Encoding utf8
-    $ocrArchive = Join-Path (Split-Path -Parent $ocrPublishDirectory) 'EasyCon-170a-FRLG-OCR-JPN-r3-win-x64.zip'
+    $ocrArchive = Join-Path (Split-Path -Parent $ocrPublishDirectory) 'EasyCon-170a-FRLG-OCR-JPN-r4-win-x64.zip'
     Compress-Archive -LiteralPath $ocrPublishDirectory -DestinationPath $ocrArchive -CompressionLevel Optimal
     Write-Output "PUBLISH_DIRECTORY=$ocrPublishDirectory"
     Write-Output "ARCHIVE=$ocrArchive"
