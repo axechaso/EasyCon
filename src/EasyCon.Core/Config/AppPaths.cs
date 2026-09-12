@@ -2,7 +2,7 @@ namespace EasyCon.Core.Config;
 
 public static class AppPaths
 {
-    private const string _appName = "easycon";
+    private const string _appName = "FRLG-OCR-Data";
 
     public static string ConfigDir { get; } = InitDir(Environment.SpecialFolder.ApplicationData);
     public static string DataDir { get; } = InitDir(Environment.SpecialFolder.LocalApplicationData);
@@ -29,7 +29,8 @@ public static class AppPaths
 
     private static string InitDir(Environment.SpecialFolder folder)
     {
-        var dir = Path.Combine(Environment.GetFolderPath(folder), _appName);
+        var dir = Path.Combine(AppContext.BaseDirectory, _appName,
+            folder == Environment.SpecialFolder.ApplicationData ? "config" : "data");
         Directory.CreateDirectory(dir);
         return dir;
     }

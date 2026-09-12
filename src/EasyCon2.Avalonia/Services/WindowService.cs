@@ -24,6 +24,7 @@ public class WindowService : IWindowService
     private readonly ILogService _logService;
     private readonly IDialogService _dialogService;
     private Window? _espConfigWindow;
+    private FrlgOcrWindow? _frlgOcrWindow;
 
     public WindowService(IDeviceService deviceService, ILogService logService, IDialogService dialogService)
     {
@@ -124,5 +125,19 @@ public class WindowService : IWindowService
             Content = textBox
         };
         window.Show(MainWindow);
+    }
+
+    public void ShowFrlgOcrWindow(Func<byte[]?> captureFrame)
+    {
+        if (_frlgOcrWindow != null)
+        {
+            _frlgOcrWindow.WindowState = WindowState.Normal;
+            _frlgOcrWindow.Activate();
+            return;
+        }
+        _frlgOcrWindow = new FrlgOcrWindow { DataContext = new FrlgOcrViewModel(captureFrame) };
+        _frlgOcrWindow.Closed += (_, _) => _frlgOcrWindow = null;
+        if (MainWindow != null) _frlgOcrWindow.Show(MainWindow);
+        else _frlgOcrWindow.Show();
     }
 }

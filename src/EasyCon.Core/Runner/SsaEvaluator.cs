@@ -349,26 +349,26 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
 
             // ---- 加载/存储：扁平帧，一次 struct copy 无分支 ----
             case SsaOp.LoadLocal:
-            {
-                var slotIdx = ((LocalVariableSymbol)val.Aux!).Slot.Index;
-                _cache[val.Id] = frame.Locals[slotIdx];
-                break;
-            }
+                {
+                    var slotIdx = ((LocalVariableSymbol)val.Aux!).Slot.Index;
+                    _cache[val.Id] = frame.Locals[slotIdx];
+                    break;
+                }
             case SsaOp.StoreLocal:
-            {
-                var slotIdx = ((LocalVariableSymbol)val.Aux!).Slot.Index;
-                StoreLocalSlot(slotIdx, val.Type, val.Arg0!);
-                break;
-            }
+                {
+                    var slotIdx = ((LocalVariableSymbol)val.Aux!).Slot.Index;
+                    StoreLocalSlot(slotIdx, val.Type, val.Arg0!);
+                    break;
+                }
             case SsaOp.LoadGlobal:
                 _cache[val.Id] = _globals[_globalIndex[(VariableSymbol)val.Aux!]];
                 break;
             case SsaOp.StoreGlobal:
-            {
-                var gidx = _globalIndex[(VariableSymbol)val.Aux!];
-                StoreGlobalSlot(gidx, val.Type, val.Arg0!);
-                break;
-            }
+                {
+                    var gidx = _globalIndex[(VariableSymbol)val.Aux!];
+                    StoreGlobalSlot(gidx, val.Type, val.Arg0!);
+                    break;
+                }
 
             // ---- 算术 (int)：直接读 .I32 字段，SSA 操作码已保证类型正确 ----
             case SsaOp.AddInt:
@@ -459,39 +459,39 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
                 break;
 
             // ---- 比较 (int) → 结果是 bool ----
-            case SsaOp.EqInt:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.EqInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
             case SsaOp.NeqInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 != _cache[val.Arg1!.Id].I32); break;
-            case SsaOp.LtInt:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 <  _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.LtInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 < _cache[val.Arg1!.Id].I32); break;
             case SsaOp.LeqInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 <= _cache[val.Arg1!.Id].I32); break;
-            case SsaOp.GtInt:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 >  _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.GtInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 > _cache[val.Arg1!.Id].I32); break;
             case SsaOp.GeqInt: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 >= _cache[val.Arg1!.Id].I32); break;
 
             // ---- 比较 (uint) ----
-            case SsaOp.EqUInt:  _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 == (uint)_cache[val.Arg1!.Id].I32); break;
+            case SsaOp.EqUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 == (uint)_cache[val.Arg1!.Id].I32); break;
             case SsaOp.NeqUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 != (uint)_cache[val.Arg1!.Id].I32); break;
-            case SsaOp.LtUInt:  _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 <  (uint)_cache[val.Arg1!.Id].I32); break;
+            case SsaOp.LtUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 < (uint)_cache[val.Arg1!.Id].I32); break;
             case SsaOp.LeqUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 <= (uint)_cache[val.Arg1!.Id].I32); break;
-            case SsaOp.GtUInt:  _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 >  (uint)_cache[val.Arg1!.Id].I32); break;
+            case SsaOp.GtUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 > (uint)_cache[val.Arg1!.Id].I32); break;
             case SsaOp.GeqUInt: _cache[val.Id] = TaggedValue.FromBool((uint)_cache[val.Arg0!.Id].I32 >= (uint)_cache[val.Arg1!.Id].I32); break;
 
             // ---- 比较 (double) ----
-            case SsaOp.EqDouble:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 == _cache[val.Arg1!.Id].F64); break;
+            case SsaOp.EqDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 == _cache[val.Arg1!.Id].F64); break;
             case SsaOp.NeqDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 != _cache[val.Arg1!.Id].F64); break;
-            case SsaOp.LtDouble:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 <  _cache[val.Arg1!.Id].F64); break;
+            case SsaOp.LtDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 < _cache[val.Arg1!.Id].F64); break;
             case SsaOp.LeqDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 <= _cache[val.Arg1!.Id].F64); break;
-            case SsaOp.GtDouble:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 >  _cache[val.Arg1!.Id].F64); break;
+            case SsaOp.GtDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 > _cache[val.Arg1!.Id].F64); break;
             case SsaOp.GeqDouble: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].F64 >= _cache[val.Arg1!.Id].F64); break;
 
             // ---- 比较 (uint64) ----
-            case SsaOp.EqUInt64:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() == _cache[val.Arg1!.Id].AsUInt64()); break;
+            case SsaOp.EqUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() == _cache[val.Arg1!.Id].AsUInt64()); break;
             case SsaOp.NeqUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() != _cache[val.Arg1!.Id].AsUInt64()); break;
-            case SsaOp.LtUInt64:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() <  _cache[val.Arg1!.Id].AsUInt64()); break;
+            case SsaOp.LtUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() < _cache[val.Arg1!.Id].AsUInt64()); break;
             case SsaOp.LeqUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() <= _cache[val.Arg1!.Id].AsUInt64()); break;
-            case SsaOp.GtUInt64:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() >  _cache[val.Arg1!.Id].AsUInt64()); break;
+            case SsaOp.GtUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() > _cache[val.Arg1!.Id].AsUInt64()); break;
             case SsaOp.GeqUInt64: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].AsUInt64() >= _cache[val.Arg1!.Id].AsUInt64()); break;
 
             // ---- 比较 (bool/string/ptr/byte) ----
-            case SsaOp.EqBool:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.EqBool: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
             case SsaOp.NeqBool: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 != _cache[val.Arg1!.Id].I32); break;
             case SsaOp.EqString:
                 _cache[val.Id] = TaggedValue.FromBool(string.Equals(CoerceString(val.Arg0!.Id), CoerceString(val.Arg1!.Id), StringComparison.Ordinal));
@@ -499,13 +499,13 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
             case SsaOp.NeqString:
                 _cache[val.Id] = TaggedValue.FromBool(!string.Equals(CoerceString(val.Arg0!.Id), CoerceString(val.Arg1!.Id), StringComparison.Ordinal));
                 break;
-            case SsaOp.EqPtr:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I64 == _cache[val.Arg1!.Id].I64); break;
+            case SsaOp.EqPtr: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I64 == _cache[val.Arg1!.Id].I64); break;
             case SsaOp.NeqPtr: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I64 != _cache[val.Arg1!.Id].I64); break;
-            case SsaOp.EqByte:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.EqByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 == _cache[val.Arg1!.Id].I32); break;
             case SsaOp.NeqByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 != _cache[val.Arg1!.Id].I32); break;
-            case SsaOp.LtByte:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 <  _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.LtByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 < _cache[val.Arg1!.Id].I32); break;
             case SsaOp.LeqByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 <= _cache[val.Arg1!.Id].I32); break;
-            case SsaOp.GtByte:  _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 >  _cache[val.Arg1!.Id].I32); break;
+            case SsaOp.GtByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 > _cache[val.Arg1!.Id].I32); break;
             case SsaOp.GeqByte: _cache[val.Id] = TaggedValue.FromBool(_cache[val.Arg0!.Id].I32 >= _cache[val.Arg1!.Id].I32); break;
 
             // ---- 逻辑 ----
@@ -514,16 +514,16 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
                 break;
 
             // ---- 类型转换 ----
-            case SsaOp.ConvBoolToInt:   _cache[val.Id] = TaggedValue.FromInt(_cache[val.Arg0!.Id].I32); break;
-            case SsaOp.ConvByteToInt:   _cache[val.Id] = TaggedValue.FromInt(_cache[val.Arg0!.Id].I32); break;
-            case SsaOp.ConvIntToUInt:   _cache[val.Id] = TaggedValue.FromUInt(unchecked((uint)_cache[val.Arg0!.Id].I32)); break;
+            case SsaOp.ConvBoolToInt: _cache[val.Id] = TaggedValue.FromInt(_cache[val.Arg0!.Id].I32); break;
+            case SsaOp.ConvByteToInt: _cache[val.Id] = TaggedValue.FromInt(_cache[val.Arg0!.Id].I32); break;
+            case SsaOp.ConvIntToUInt: _cache[val.Id] = TaggedValue.FromUInt(unchecked((uint)_cache[val.Arg0!.Id].I32)); break;
             case SsaOp.ConvIntToUInt64: _cache[val.Id] = TaggedValue.FromUInt64((ulong)_cache[val.Arg0!.Id].I32); break;
             case SsaOp.ConvIntToDouble: _cache[val.Id] = TaggedValue.FromDouble(_cache[val.Arg0!.Id].I32); break;
-            case SsaOp.ConvIntToByte:   _cache[val.Id] = TaggedValue.FromByte((byte)_cache[val.Arg0!.Id].I32); break;
-            case SsaOp.ConvUIntToUInt64:_cache[val.Id] = TaggedValue.FromUInt64((uint)_cache[val.Arg0!.Id].I32); break;
+            case SsaOp.ConvIntToByte: _cache[val.Id] = TaggedValue.FromByte((byte)_cache[val.Arg0!.Id].I32); break;
+            case SsaOp.ConvUIntToUInt64: _cache[val.Id] = TaggedValue.FromUInt64((uint)_cache[val.Arg0!.Id].I32); break;
             case SsaOp.ConvUInt64ToPtr: _cache[val.Id] = TaggedValue.FromPtr(_cache[val.Arg0!.Id].I64); break;
-            case SsaOp.ConvPtrToInt:    _cache[val.Id] = TaggedValue.FromInt((int)_cache[val.Arg0!.Id].I64); break;
-            case SsaOp.ConvIntToPtr:    _cache[val.Id] = TaggedValue.FromPtr(_cache[val.Arg0!.Id].I32); break;
+            case SsaOp.ConvPtrToInt: _cache[val.Id] = TaggedValue.FromInt((int)_cache[val.Arg0!.Id].I64); break;
+            case SsaOp.ConvIntToPtr: _cache[val.Id] = TaggedValue.FromPtr(_cache[val.Arg0!.Id].I32); break;
             case SsaOp.ConvDoubleToInt: _cache[val.Id] = TaggedValue.FromInt((int)_cache[val.Arg0!.Id].F64); break;
             case SsaOp.ConvUInt64ToInt: _cache[val.Id] = TaggedValue.FromInt(unchecked((int)_cache[val.Arg0!.Id].AsUInt64())); break;
             case SsaOp.ConvToString:
@@ -533,11 +533,11 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
                 _cache[val.Id] = TaggedValue.FromInt(ConvToInt(val.Arg0!));
                 break;
             case SsaOp.ArrayAppend:
-            {
-                var arr = CoerceArray(val.Arg0!.Id);
-                _cache[val.Id] = TaggedValue.FromArrayHandle(StoreArray(arr.Append(CacheToValue(val.Arg1!))));
-                break;
-            }
+                {
+                    var arr = CoerceArray(val.Arg0!.Id);
+                    _cache[val.Id] = TaggedValue.FromArrayHandle(StoreArray(arr.Append(CacheToValue(val.Arg1!))));
+                    break;
+                }
 
             // ---- 控制流（Phi 在主循环中处理） ----
             case SsaOp.Phi:
@@ -568,11 +568,11 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
                 ExecuteSliceToCache(val);
                 break;
             case SsaOp.ArrayLen:
-            {
-                var obj = DerefHandle(val.Arg0!);
-                _cache[val.Id] = TaggedValue.FromInt(obj is ScriptArray arr ? arr.Length : obj is string s ? s.Length : 0);
-                break;
-            }
+                {
+                    var obj = DerefHandle(val.Arg0!);
+                    _cache[val.Id] = TaggedValue.FromInt(obj is ScriptArray arr ? arr.Length : obj is string s ? s.Length : 0);
+                    break;
+                }
             case SsaOp.Contains:
                 _cache[val.Id] = TaggedValue.FromBool(CacheToValue(val.Arg1!).Contains(CacheToValue(val.Arg0!)));
                 break;
@@ -658,14 +658,14 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     {
         switch (val.Op)
         {
-            case SsaOp.ConstBool:   _constCache[val.Id] = TaggedValue.FromBool(val.Const.GetBool()); break;
-            case SsaOp.ConstByte:   _constCache[val.Id] = TaggedValue.FromByte(val.Const.GetByte()); break;
-            case SsaOp.ConstInt:    _constCache[val.Id] = TaggedValue.FromInt(val.Const.GetInt()); break;
-            case SsaOp.ConstUInt:   _constCache[val.Id] = TaggedValue.FromUInt(val.Const.GetUInt()); break;
+            case SsaOp.ConstBool: _constCache[val.Id] = TaggedValue.FromBool(val.Const.GetBool()); break;
+            case SsaOp.ConstByte: _constCache[val.Id] = TaggedValue.FromByte(val.Const.GetByte()); break;
+            case SsaOp.ConstInt: _constCache[val.Id] = TaggedValue.FromInt(val.Const.GetInt()); break;
+            case SsaOp.ConstUInt: _constCache[val.Id] = TaggedValue.FromUInt(val.Const.GetUInt()); break;
             case SsaOp.ConstUInt64: _constCache[val.Id] = TaggedValue.FromUInt64(val.Const.GetUInt64()); break;
             case SsaOp.ConstDouble: _constCache[val.Id] = TaggedValue.FromDouble(val.Const.GetDouble()); break;
             case SsaOp.ConstString: _constCache[val.Id] = TaggedValue.FromStringHandle(StoreString(val.ConstString ?? "")); break;
-            case SsaOp.ConstPtr:    _constCache[val.Id] = TaggedValue.FromPtr(val.Const.GetPtr()); break;
+            case SsaOp.ConstPtr: _constCache[val.Id] = TaggedValue.FromPtr(val.Const.GetPtr()); break;
         }
     }
 
@@ -768,7 +768,7 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
         var obj = tv.Tag switch
         {
             TaggedValue.STRING => (object?)_heap.GetString(tv.Handle),
-            TaggedValue.ARRAY  => _heap.GetArray(tv.Handle),
+            TaggedValue.ARRAY => _heap.GetArray(tv.Handle),
             TaggedValue.STRUCT => _heap.GetStruct(tv.Handle),
             _ => null
         };
@@ -804,16 +804,16 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     /// <summary>将 Value 解包到缓存（用于函数返回值、数组元素解包等边界）。</summary>
     private void ValueToCache(int id, ScriptType type, Value value)
     {
-        if (type.Equals(ScriptType.Int))    _cache[id] = TaggedValue.FromInt(value.AsInt());
-        else if (type.Equals(ScriptType.Bool))   _cache[id] = TaggedValue.FromBool(value.AsBool());
-        else if (type.Equals(ScriptType.Byte))   _cache[id] = TaggedValue.FromByte(value.AsByte());
-        else if (type.Equals(ScriptType.UInt))   _cache[id] = TaggedValue.FromUInt(value.AsUInt());
+        if (type.Equals(ScriptType.Int)) _cache[id] = TaggedValue.FromInt(value.AsInt());
+        else if (type.Equals(ScriptType.Bool)) _cache[id] = TaggedValue.FromBool(value.AsBool());
+        else if (type.Equals(ScriptType.Byte)) _cache[id] = TaggedValue.FromByte(value.AsByte());
+        else if (type.Equals(ScriptType.UInt)) _cache[id] = TaggedValue.FromUInt(value.AsUInt());
         else if (type.Equals(ScriptType.Double)) _cache[id] = TaggedValue.FromDouble(value.AsDouble());
         else if (type.Equals(ScriptType.UInt64)) _cache[id] = TaggedValue.FromUInt64(value.AsUInt64());
-        else if (type.Equals(ScriptType.Ptr))    _cache[id] = TaggedValue.FromPtr(value.AsPtr());
+        else if (type.Equals(ScriptType.Ptr)) _cache[id] = TaggedValue.FromPtr(value.AsPtr());
         else if (type.Equals(ScriptType.String)) _cache[id] = TaggedValue.FromStringHandle(StoreString(value.AsString()));
-        else if (type is ArrayType)              _cache[id] = TaggedValue.FromArrayHandle(StoreArray(value.AsArray().Clone()));
-        else if (type is StructType)             _cache[id] = TaggedValue.FromStructHandle(StoreStruct(new EcsStruct(value.AsStruct().Definition, value.AsStruct().NativePtr)));
+        else if (type is ArrayType) _cache[id] = TaggedValue.FromArrayHandle(StoreArray(value.AsArray().Clone()));
+        else if (type is StructType) _cache[id] = TaggedValue.FromStructHandle(StoreStruct(new EcsStruct(value.AsStruct().Definition, value.AsStruct().NativePtr)));
     }
 
     /// <summary>通用 int 转换（用于 ConvToInt）。</summary>
@@ -821,7 +821,7 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     {
         var tv = _cache[v.Id];
         if (tv.IsIntegerCategory) return tv.I32;
-        if (tv.IsDoubleCategory)  return (int)tv.F64;
+        if (tv.IsDoubleCategory) return (int)tv.F64;
         throw new InvalidCastException($"无法从 {v.Type} 转换为 int");
     }
 
@@ -829,12 +829,12 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     private string ConvToString(SsaValue v)
     {
         var tv = _cache[v.Id];
-        if (v.Type.Equals(ScriptType.Bool))   return tv.I32 != 0 ? "true" : "false";
-        if (tv.IsIntegerCategory)             return tv.I32.ToString();
+        if (v.Type.Equals(ScriptType.Bool)) return tv.I32 != 0 ? "true" : "false";
+        if (tv.IsIntegerCategory) return tv.I32.ToString();
         if (v.Type.Equals(ScriptType.UInt64)) return tv.AsUInt64().ToString();
-        if (v.Type.Equals(ScriptType.Ptr))    return tv.I64.ToString();
-        if (tv.IsDoubleCategory)              return tv.F64.ToString();
-        if (tv.IsHandle)                      return CacheToValue(v).ToString();
+        if (v.Type.Equals(ScriptType.Ptr)) return tv.I64.ToString();
+        if (tv.IsDoubleCategory) return tv.F64.ToString();
+        if (tv.IsHandle) return CacheToValue(v).ToString();
         return "";
     }
 
@@ -861,7 +861,7 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
         return tv.Tag switch
         {
             TaggedValue.STRING => _heap.GetString(tv.Handle),
-            TaggedValue.ARRAY  => _heap.GetArray(tv.Handle),
+            TaggedValue.ARRAY => _heap.GetArray(tv.Handle),
             TaggedValue.STRUCT => _heap.GetStruct(tv.Handle),
             _ => null
         };
@@ -898,7 +898,7 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
         return tv.Tag switch
         {
             TaggedValue.STRING => TaggedValue.FromStringHandle(_heap.DeepCopyHandle(tv.Handle)),
-            TaggedValue.ARRAY  => TaggedValue.FromArrayHandle(_heap.DeepCopyHandle(tv.Handle)),
+            TaggedValue.ARRAY => TaggedValue.FromArrayHandle(_heap.DeepCopyHandle(tv.Handle)),
             TaggedValue.STRUCT => TaggedValue.FromStructHandle(_heap.DeepCopyHandle(tv.Handle)),
             _ => tv
         };
@@ -1259,30 +1259,30 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     private object ReadRawForType(SsaValue v, ScriptType type)
     {
         var tv = _cache[v.Id];
-        if (type.Equals(ScriptType.Byte))   return (byte)tv.I32;
-        if (type.Equals(ScriptType.Int))    return tv.I32;
-        if (type.Equals(ScriptType.Bool))   return tv.I32 != 0;
-        if (type.Equals(ScriptType.UInt))   return unchecked((uint)tv.I32);
+        if (type.Equals(ScriptType.Byte)) return (byte)tv.I32;
+        if (type.Equals(ScriptType.Int)) return tv.I32;
+        if (type.Equals(ScriptType.Bool)) return tv.I32 != 0;
+        if (type.Equals(ScriptType.UInt)) return unchecked((uint)tv.I32);
         if (type.Equals(ScriptType.UInt64)) return tv.AsUInt64();
-        if (type.Equals(ScriptType.Ptr))    return new IntPtr(tv.I64);
+        if (type.Equals(ScriptType.Ptr)) return new IntPtr(tv.I64);
         if (type.Equals(ScriptType.Double)) return tv.F64;
         if (type.Equals(ScriptType.String)) return CoerceString(v.Id);
-        if (type is StructType)             return CoerceStruct(v.Id);
+        if (type is StructType) return CoerceStruct(v.Id);
         return tv.I32;
     }
 
     /// <summary>将结构体原始字段值写入统一缓存（按 ScriptType）。</summary>
     private void WriteRawToCache(int id, ScriptType type, object raw)
     {
-        if (type.Equals(ScriptType.Byte))         _cache[id] = TaggedValue.FromByte((byte)raw);
-        else if (type.Equals(ScriptType.Int))     _cache[id] = TaggedValue.FromInt((int)raw);
-        else if (type.Equals(ScriptType.Bool))    _cache[id] = TaggedValue.FromBool((bool)raw);
-        else if (type.Equals(ScriptType.UInt))    _cache[id] = TaggedValue.FromUInt((uint)raw);
-        else if (type.Equals(ScriptType.UInt64))  _cache[id] = TaggedValue.FromUInt64((ulong)raw);
-        else if (type.Equals(ScriptType.Ptr))     _cache[id] = TaggedValue.FromPtr(((IntPtr)raw).ToInt64());
-        else if (type.Equals(ScriptType.Double))  _cache[id] = TaggedValue.FromDouble((double)raw);
-        else if (type.Equals(ScriptType.String))  _cache[id] = TaggedValue.FromStringHandle(StoreString((string)raw));
-        else if (type is StructType)              _cache[id] = TaggedValue.FromStructHandle(StoreStruct((EcsStruct)raw));
+        if (type.Equals(ScriptType.Byte)) _cache[id] = TaggedValue.FromByte((byte)raw);
+        else if (type.Equals(ScriptType.Int)) _cache[id] = TaggedValue.FromInt((int)raw);
+        else if (type.Equals(ScriptType.Bool)) _cache[id] = TaggedValue.FromBool((bool)raw);
+        else if (type.Equals(ScriptType.UInt)) _cache[id] = TaggedValue.FromUInt((uint)raw);
+        else if (type.Equals(ScriptType.UInt64)) _cache[id] = TaggedValue.FromUInt64((ulong)raw);
+        else if (type.Equals(ScriptType.Ptr)) _cache[id] = TaggedValue.FromPtr(((IntPtr)raw).ToInt64());
+        else if (type.Equals(ScriptType.Double)) _cache[id] = TaggedValue.FromDouble((double)raw);
+        else if (type.Equals(ScriptType.String)) _cache[id] = TaggedValue.FromStringHandle(StoreString((string)raw));
+        else if (type is StructType) _cache[id] = TaggedValue.FromStructHandle(StoreStruct((EcsStruct)raw));
     }
 
     private static Value RawToValue(object raw, ScriptType type)
@@ -1381,15 +1381,15 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     /// <summary>将 Value 解包到帧槽位（用于函数参数传入）。</summary>
     private void ValueToSlot(EvalFrame frame, int slotIdx, ScriptType type, Value value)
     {
-        if (type.Equals(ScriptType.Int))         frame.Locals[slotIdx] = TaggedValue.FromInt(value.AsInt());
-        else if (type.Equals(ScriptType.Bool))   frame.Locals[slotIdx] = TaggedValue.FromBool(value.AsBool());
-        else if (type.Equals(ScriptType.Byte))   frame.Locals[slotIdx] = TaggedValue.FromByte(value.AsByte());
-        else if (type.Equals(ScriptType.UInt))   frame.Locals[slotIdx] = TaggedValue.FromUInt(value.AsUInt());
+        if (type.Equals(ScriptType.Int)) frame.Locals[slotIdx] = TaggedValue.FromInt(value.AsInt());
+        else if (type.Equals(ScriptType.Bool)) frame.Locals[slotIdx] = TaggedValue.FromBool(value.AsBool());
+        else if (type.Equals(ScriptType.Byte)) frame.Locals[slotIdx] = TaggedValue.FromByte(value.AsByte());
+        else if (type.Equals(ScriptType.UInt)) frame.Locals[slotIdx] = TaggedValue.FromUInt(value.AsUInt());
         else if (type.Equals(ScriptType.UInt64)) frame.Locals[slotIdx] = TaggedValue.FromUInt64(value.AsUInt64());
-        else if (type.Equals(ScriptType.Ptr))    frame.Locals[slotIdx] = TaggedValue.FromPtr(value.AsPtr());
+        else if (type.Equals(ScriptType.Ptr)) frame.Locals[slotIdx] = TaggedValue.FromPtr(value.AsPtr());
         else if (type.Equals(ScriptType.Double)) frame.Locals[slotIdx] = TaggedValue.FromDouble(value.AsDouble());
         else if (type.Equals(ScriptType.String)) frame.Locals[slotIdx] = TaggedValue.FromStringHandle(StoreString(value.AsString()));
-        else if (type is ArrayType)              frame.Locals[slotIdx] = TaggedValue.FromArrayHandle(StoreArray(value.AsArray().Clone()));
+        else if (type is ArrayType) frame.Locals[slotIdx] = TaggedValue.FromArrayHandle(StoreArray(value.AsArray().Clone()));
         else if (type is StructType)
         {
             var src = value.AsStruct();
