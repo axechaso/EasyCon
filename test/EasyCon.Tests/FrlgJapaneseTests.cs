@@ -239,7 +239,7 @@ public sealed class FrlgJapaneseTests
     public void DefaultWildRegionsKeepCompleteGlyphMargins()
     {
         Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_NAME", 1920, 1080),
-            Is.EqualTo(new Rect(285, 127, 381, 77)));
+            Is.EqualTo(new Rect(290, 127, 360, 73)));
         Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_WILD_LEVEL", 1920, 1080),
             Is.EqualTo(new Rect(765, 127, 70, 77)));
     }

@@ -14,8 +14,8 @@ public static class FrlgScenes
     {
         new("FRLG_JPN_TID", "日版 · 训练家卡 TID", "tid", .712981, .118836, .207212, .077373, 0, 65535),
         new("FRLG_EN_TID", "英文 · 训练家卡 TID", "tid", .742683, .117314, .129734, .076006, 0, 65535),
-        // Keep blank space around the complete kana row; the 66 px box clipped its lower strokes.
-        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .067308, .1175, .244231, .0740385),
+        // Keep the complete kana row clear of both the panel edge and the following "Lv" glyph.
+        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .070513, .1175, .230769, .070192),
         new("FRLG_JPN_SUMMARY_NAME", "日版 · 摘要种族名称", "name", .688942, .210577, .261538, .069231),
         // Include raised dakuten (e.g. さみしがり) without entering the memo heading above.
         new("FRLG_JPN_NATURE", "日版 · 性格", "nature", .048718, .747116, .458205, .070192),
