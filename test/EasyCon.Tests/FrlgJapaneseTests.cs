@@ -200,6 +200,11 @@ public sealed class FrlgJapaneseTests
             [exact, supporting with { Candidate = "ラブカス" }]), Is.False);
         Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
             [exact with { Distance = 1 }, supporting]), Is.False);
+        FrlgTextAttempt kinglerExact = new("PaddleOCR", 184, "キングラー", .90, "キングラー", 0, true, "");
+        FrlgTextAttempt kinglerSupport = new("PaddleOCR", 160, "キンウラー", .72, "キングラー", 1, false, "");
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([kinglerExact, kinglerSupport]), Is.True);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
+            [kinglerExact, kinglerSupport with { Candidate = "キングドラ" }]), Is.False);
     }
 
     [Test]
@@ -228,6 +233,13 @@ public sealed class FrlgJapaneseTests
         Assert.That(region.Y, Is.GreaterThan(778 * height / 1080.0));
         Assert.That(region.Y, Is.LessThan(785 * height / 1080.0));
         Assert.That(region.Y + region.Height, Is.GreaterThan(851 * height / 1080.0));
+    }
+
+    [Test]
+    public void DefaultWildNameRegionKeepsHorizontalSafetyMargin()
+    {
+        Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_NAME", 1920, 1080),
+            Is.EqualTo(new Rect(285, 129, 374, 66)));
     }
 
     [Test]

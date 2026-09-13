@@ -14,7 +14,8 @@ public static class FrlgScenes
     {
         new("FRLG_JPN_TID", "日版 · 训练家卡 TID", "tid", .712981, .118836, .207212, .077373, 0, 65535),
         new("FRLG_EN_TID", "英文 · 训练家卡 TID", "tid", .742683, .117314, .129734, .076006, 0, 65535),
-        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .075, .120, .232, .063),
+        // Leave horizontal breathing room around the first glyph while preserving the old right edge.
+        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .067308, .120, .240, .063),
         new("FRLG_JPN_SUMMARY_NAME", "日版 · 摘要种族名称", "name", .688942, .210577, .261538, .069231),
         // Include raised dakuten (e.g. さみしがり) without entering the memo heading above.
         new("FRLG_JPN_NATURE", "日版 · 性格", "nature", .048718, .747116, .458205, .070192),

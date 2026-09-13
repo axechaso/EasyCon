@@ -1,6 +1,8 @@
-# FRLG OCR 170a 日文增强版 · r4
+# FRLG OCR 170a 日文增强版 · r5
 
-基于 EasyCon `1aed001c0e2d3a32d211c39bec26546741626bd6`，程序版本 `1.7.0-alpha.frlg-jpn.4`。本包支持日文名称、性格、摘要等级、六项能力值、野生等级，保留已实测可用的日英 TID 管线。
+基于 EasyCon `1aed001c0e2d3a32d211c39bec26546741626bd6`，程序版本 `1.7.0-alpha.frlg-jpn.5`。本包支持日文名称、性格、摘要等级、六项能力值、野生等级，保留已实测可用的日英 TID 管线。
+
+r5 将日版野生名称默认区域从 `297,129,362,66` 调整为 `285,129,374,66`，在不侵入等级数字的前提下给名称左侧留出安全边距，避免完整性保护把贴边文字误判成 `clipped-text`。名称确认同时支持“一次至少85%的完整精确读数 + 另一阈值至少70%的同候选近似读数”；仍要求独立阈值、唯一候选和至少一次完整精确名称。真正截断字形仍直接失败，不允许词典脑补通过。
 
 r4 修正短日文种族名的多尺度确认：当一个阈值给出完整精确名称（置信度至少70%），另一独立阈值以至少85%置信度落到同一词典候选且编辑距离不超过1时，可确认该名称。不同候选、同一阈值重复、没有完整精确读数都不会通过。实机案例 `クラブ` 不再因精确票77%而被旧80%双票门槛拒绝。
 
@@ -45,7 +47,7 @@ r3 修复短性格默认框带入 `Lv` 时的 `clipped-text`、上沿截断「�
 已知目标时在窗口填 `ミニリュウ|ハクリュー`，或直接传：
 
 ```text
-$名称 = OCR(297, 129, 362, 66, "FRLG_JPN_NAME:ミニリュウ|ハクリュー")
+$名称 = OCR(285, 129, 374, 66, "FRLG_JPN_NAME:ミニリュウ|ハクリュー")
 PRINT $名称
 ```
 
@@ -75,7 +77,7 @@ PRINT $名称
 .\FrlgOcrReplay.exe .\samples\Page1\bulbasaur_1_jpn.png FRLG_JPN_SUMMARY_NAME --expected フシギダネ --output .\replay-name
 .\FrlgOcrReplay.exe .\samples\Page1\deoxys_1_jpn.png FRLG_JPN_NATURE --expected しんちょう --output .\replay-nature
 .\FrlgOcrReplay.exe .\samples\Page2\deoxys_1_jpn.png FRLG_JPN_HP --expected 70 --output .\replay-hp
-.\FrlgOcrReplay.exe .\capture.png FRLG_JPN_NAME --roi 297,129,362,66 --output .\replay-manual
+.\FrlgOcrReplay.exe .\capture.png FRLG_JPN_NAME --roi 285,129,374,66 --output .\replay-manual
 ```
 
 报告包含原始文字、词典候选、置信信息或逐位字模分数。`--output` 导出处理图片，`--repeat` 测量重复执行；静态回放不当作多张独立样本。
