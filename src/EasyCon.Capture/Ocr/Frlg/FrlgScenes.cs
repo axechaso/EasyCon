@@ -14,13 +14,14 @@ public static class FrlgScenes
     {
         new("FRLG_JPN_TID", "日版 · 训练家卡 TID", "tid", .712981, .118836, .207212, .077373, 0, 65535),
         new("FRLG_EN_TID", "英文 · 训练家卡 TID", "tid", .742683, .117314, .129734, .076006, 0, 65535),
-        // Leave horizontal breathing room around the first glyph while preserving the old right edge.
-        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .067308, .120, .240, .063),
+        // Keep blank space around the complete kana row; the 66 px box clipped its lower strokes.
+        new("FRLG_JPN_NAME", "日版 · 野生名称", "name", .067308, .1175, .244231, .0740385),
         new("FRLG_JPN_SUMMARY_NAME", "日版 · 摘要种族名称", "name", .688942, .210577, .261538, .069231),
         // Include raised dakuten (e.g. さみしがり) without entering the memo heading above.
         new("FRLG_JPN_NATURE", "日版 · 性格", "nature", .048718, .747116, .458205, .070192),
         new("FRLG_JPN_LEVEL", "日版 · 摘要等级", "level", .060256, .116346, .124359, .075962, 2, 100),
-        new("FRLG_JPN_WILD_LEVEL", "日版 · 野生等级（只框数字）", "wild-level", .369, .120, .045, .063, 2, 100),
+        // Start after the trailing stroke of "Lv" and leave room for the blurred digit mask.
+        new("FRLG_JPN_WILD_LEVEL", "日版 · 野生等级（只框数字）", "wild-level", .375, .1175, .0448718, .0740385, 2, 100),
         new("FRLG_JPN_HP", "日版 · 最大 HP（支持当前/最大）", "hp", .717165, .131662, .269632, .066876, 1, 714),
         new("FRLG_JPN_ATTACK", "日版 · 攻击", "stat", .859615, .243269, .121795, .068269),
         new("FRLG_JPN_DEFENSE", "日版 · 防御", "stat", .859615, .323792, .121795, .068269),

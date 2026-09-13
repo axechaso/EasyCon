@@ -236,10 +236,12 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
-    public void DefaultWildNameRegionKeepsHorizontalSafetyMargin()
+    public void DefaultWildRegionsKeepCompleteGlyphMargins()
     {
         Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_NAME", 1920, 1080),
-            Is.EqualTo(new Rect(285, 129, 374, 66)));
+            Is.EqualTo(new Rect(285, 127, 381, 77)));
+        Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_WILD_LEVEL", 1920, 1080),
+            Is.EqualTo(new Rect(765, 127, 70, 77)));
     }
 
     [Test]
@@ -248,7 +250,7 @@ public sealed class FrlgJapaneseTests
         // Public battle fixture is English; the digit crop is shared. Japanese capture remains a hardware check.
         using Mat frame = Fixture("Wild/eng_dragonair.jpg");
         string scene = "FRLG_JPN_WILD_LEVEL";
-        Assert.That(FrlgOcr.ReadFrame(frame, FrlgOcr.DefaultRegion(scene, frame.Width, frame.Height), scene).Text, Is.EqualTo("28"));
+        Assert.That(FrlgOcr.ReadFrame(frame, new Rect(755, 129, 70, 66), scene).Text, Is.EqualTo("28"));
     }
 
     [Test]
