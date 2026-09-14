@@ -9,7 +9,7 @@ using System.Text;
 namespace EasyCon.Capture.Ocr.Frlg;
 
 public sealed record FrlgTextAttempt(string Backend, int Threshold, string Raw, double Confidence,
-    string Candidate, int Distance, bool Accepted, string Failure);
+    string Candidate, int Distance, bool Accepted, string Failure, bool LexiconAccepted = true);
 
 /// <summary>Owns lazily initialized text engines. Calls are serialized; native engines are disposed by the owner.</summary>
 public sealed class FrlgTextReader : IDisposable
@@ -42,6 +42,7 @@ public sealed class FrlgTextReader : IDisposable
             using Mat clause = nature ? FirstNatureClause(image) : image.Clone();
             bool splitClause = clause.Width != image.Width;
             if (TouchesInk(clause)) return Result("", "clipped-text");
+            char? gender = nature ? null : DetectGenderMarker(clause);
 
             using Mat resized = new();
             Cv2.Resize(clause, resized, new Size(Math.Max(1, clause.Width * 69 / clause.Height), 69));
@@ -72,9 +73,16 @@ public sealed class FrlgTextReader : IDisposable
                 FrlgTextAttempt[] paddle = attempts.Where(a => a.Accepted).ToArray();
                 string[] primary = paddle.Select(a => a.Candidate).Distinct().ToArray();
                 // Require two strong, complete, consistent primary reads; otherwise obtain a second opinion.
-                if (primary.Length == 1 && (paddle.Count(a => a.Confidence >= .80 && a.Distance == 0) >= 2
-                    || !nature && NameConfirmedByPrimaryVariants(attempts.ToArray())))
+                if (primary.Length == 1 && paddle.Count(a => a.Confidence >= .80 && a.Distance == 0) >= 2)
                     return Result(primary[0], "", (int)(paddle.Average(a => a.Confidence) * 100));
+                if (!nature && ConfirmedNameFromPrimaryVariants(attempts.ToArray()) is string confirmedName)
+                {
+                    FrlgTextAttempt[] votes = attempts.Where(a => a.Backend == "PaddleOCR"
+                        && a.LexiconAccepted && a.Candidate == confirmedName
+                        && a.Failure.Length == 0 && a.Distance <= 1
+                        && a.Confidence >= .60).ToArray();
+                    return Result(confirmedName, "", (int)(votes.Average(a => a.Confidence) * 100));
+                }
                 foreach ((int threshold, Mat variant) in variants)
                     ReadVariant("Tesseract", threshold, variant);
                 FrlgTextAttempt[] secondary = attempts.Where(a => a.Backend == "Tesseract" && a.Accepted).ToArray();
@@ -95,26 +103,113 @@ public sealed class FrlgTextReader : IDisposable
                 try
                 {
                     OcrRecognizeResult raw = backend == "PaddleOCR" ? Paddle(variant) : Tesseract(variant);
-                    FrlgWordMatch match = FrlgJapaneseLexicon.Match(raw.Text, nature, targets, splitClause);
+                    string matchText = !nature && gender != null && FrlgJapaneseLexicon.Normalize(raw.Text) == "ニドラン"
+                        ? raw.Text + gender : raw.Text;
+                    FrlgWordMatch match = FrlgJapaneseLexicon.Match(matchText, nature, targets, splitClause);
                     attempts.Add(new(backend, threshold, raw.Text, raw.Confidence, match.Text, match.Distance,
-                        match.Accepted && raw.Confidence >= (match.Distance == 0 ? .55 : .75), ""));
+                        match.Accepted && raw.Confidence >= (match.Distance == 0 ? .55 : .75), "", match.Accepted));
                 }
                 catch (Exception ex) { attempts.Add(new(backend, threshold, "", 0, "", 99, false, ex.Message)); }
             }
         }
     }
 
+    public FrlgReadResult ReadNumber(Mat image, string scene, string? debugDirectory = null)
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            Stopwatch timer = Stopwatch.StartNew();
+            List<FrlgTextAttempt> attempts = [];
+            FrlgReadResult Result(string text, string failure, int quality = 0) =>
+                new(scene, text, failure, quality, timer.Elapsed.TotalMilliseconds, []) { TextAttempts = attempts.ToArray() };
+            FrlgSceneDefinition definition = FrlgScenes.Find(scene)!;
+
+            using Mat resized = new();
+            Cv2.Resize(image, resized, new Size(Math.Max(1, image.Width * 69 / image.Height), 69));
+            using Mat padded = PadWhite(resized, 6);
+            using Mat blur = new();
+            Cv2.GaussianBlur(padded, blur, new Size(5, 5), 1.5);
+            Cv2.GaussianBlur(blur, blur, new Size(5, 5), 1.5);
+            List<(int Threshold, Mat Image)> variants = [];
+            try
+            {
+                foreach (int threshold in new[] { 160, 184, 208, 128, 96 })
+                {
+                    Mat? variant = BinarizeAndCrop(blur, threshold);
+                    if (variant == null) continue;
+                    variants.Add((threshold, variant));
+                    if (debugDirectory != null)
+                    {
+                        Directory.CreateDirectory(debugDirectory);
+                        File.WriteAllBytes(Path.Combine(debugDirectory, $"number-{threshold}.png"), variant.ToBytes());
+                    }
+                    ReadVariant("PaddleOCR", threshold, variant);
+                    FrlgTextAttempt[] primary = attempts.Where(a => a.Backend == "PaddleOCR" && a.Accepted).ToArray();
+                    string[] candidates = primary.Select(a => a.Candidate).Distinct().ToArray();
+                    if (candidates.Length == 1 && primary.Count(a => a.Candidate == candidates[0]) >= 2)
+                        return Result(candidates[0], "", (int)(primary.Average(a => a.Confidence) * 100));
+                }
+                if (variants.Count == 0) return Result("", "no-text");
+                foreach ((int threshold, Mat variant) in variants)
+                    ReadVariant("Tesseract", threshold, variant);
+                FrlgTextAttempt[] accepted = attempts.Where(a => a.Accepted).ToArray();
+                string[] confirmed = accepted.GroupBy(a => a.Candidate).Where(g =>
+                        g.Select(a => a.Backend).Distinct().Count() >= 2)
+                    .Select(g => g.Key).ToArray();
+                if (confirmed.Length == 1 && accepted.All(a => a.Candidate == confirmed[0]))
+                    return Result(confirmed[0], "", (int)(accepted.Average(a => a.Confidence) * 100));
+                return Result("", attempts.All(a => a.Failure.Length > 0) ? "text-backends-unavailable"
+                    : accepted.Select(a => a.Candidate).Distinct().Count() > 1 ? "number-candidate-conflict"
+                    : "insufficient-number-agreement");
+            }
+            finally { foreach ((int _, Mat variant) in variants) variant.Dispose(); }
+
+            void ReadVariant(string backend, int threshold, Mat variant)
+            {
+                try
+                {
+                    OcrRecognizeResult raw = backend == "PaddleOCR" ? Paddle(variant) : Tesseract(variant);
+                    string number = NormalizeNumber(raw.Text, definition);
+                    attempts.Add(new(backend, threshold, raw.Text, raw.Confidence, number, 0,
+                        number.Length > 0 && raw.Confidence >= .55, ""));
+                }
+                catch (Exception ex) { attempts.Add(new(backend, threshold, "", 0, "", 99, false, ex.Message)); }
+            }
+        }
+    }
+
+    private static string NormalizeNumber(string raw, FrlgSceneDefinition definition)
+    {
+        StringBuilder digits = new();
+        foreach (char value in raw.Normalize(NormalizationForm.FormKC))
+        {
+            if (char.IsWhiteSpace(value)) continue;
+            if (value is < '0' or > '9') return "";
+            digits.Append(value);
+        }
+        string text = digits.ToString();
+        return text.Length is < 1 or > 3 || text.Length > 1 && text[0] == '0'
+            || !int.TryParse(text, out int number) || number < definition.Minimum || number > definition.Maximum ? "" : text;
+    }
+
     internal static bool NameConfirmedByPrimaryVariants(FrlgTextAttempt[] primary)
+        => ConfirmedNameFromPrimaryVariants(primary) != null;
+
+    private static string? ConfirmedNameFromPrimaryVariants(FrlgTextAttempt[] primary)
     {
         FrlgTextAttempt[] paddle = primary.Where(a => a.Backend == "PaddleOCR" && a.Failure.Length == 0
-            && a.Candidate.Length > 0 && a.Distance <= 1).ToArray();
-        if (paddle.Select(a => a.Candidate).Distinct().Count() != 1) return false;
+            && a.LexiconAccepted && a.Candidate.Length > 0 && a.Distance <= 1).ToArray();
         // Require one complete exact dictionary read. Its independent support may be either stronger
         // than it, or slightly weaker when the exact read itself is already high-confidence. This
         // recovers small dakuten (キングラー) without allowing two merely fuzzy guesses to agree.
-        return paddle.Any(exact => exact.Distance == 0 && exact.Confidence >= .70
-            && paddle.Any(support => support.Threshold != exact.Threshold
-                && (support.Confidence >= .85 || exact.Confidence >= .85 && support.Confidence >= .70)));
+        // A lone bad threshold must not veto a candidate confirmed by two independent variants.
+        string[] confirmed = paddle.GroupBy(a => a.Candidate).Where(group =>
+                group.Any(exact => exact.Distance == 0 && exact.Confidence >= .60
+                    && group.Any(support => support.Threshold != exact.Threshold
+                        && support.Distance <= 1 && support.Confidence >= .60)))
+            .Select(group => group.Key).ToArray();
+        return confirmed.Length == 1 ? confirmed[0] : null;
     }
 
     private OcrRecognizeResult Tesseract(Mat image)
@@ -207,15 +302,72 @@ public sealed class FrlgTextReader : IDisposable
     private static bool TouchesInk(Mat image)
     {
         byte[] pixels = FrlgDigitReader.ReadPixels(image);
-        int count = 0;
+        int left = 0, right = 0, top = 0, bottom = 0;
         for (int y = 0; y < image.Height; y++)
             for (int x = 0; x < image.Width; x++)
             {
                 if (x != 0 && y != 0 && x != image.Width - 1 && y != image.Height - 1) continue;
                 int i = (y * image.Width + x) * 3;
-                if (pixels[i] < 96 && pixels[i + 1] < 96 && pixels[i + 2] < 96 && ++count >= 2) return true;
+                if (pixels[i] >= 96 || pixels[i + 1] >= 96 || pixels[i + 2] >= 96) continue;
+                if (x == 0) left++;
+                if (x == image.Width - 1) right++;
+                if (y == 0) top++;
+                if (y == image.Height - 1) bottom++;
             }
-        return false;
+        // Horizontal clipping can remove an entire character. A few pixels on the top or bottom,
+        // however, can be a raised dakuten or the stem of the Nidoran gender marker.
+        return left >= 2 || right >= 2 || top >= 10 || bottom >= 10;
+    }
+
+    internal static char? DetectGenderMarker(Mat image)
+    {
+        byte[] pixels = FrlgDigitReader.ReadPixels(image);
+        int blue = 0, red = 0;
+        for (int y = 0; y < image.Height; y++)
+            for (int x = 0; x < image.Width; x++)
+            {
+                int i = (y * image.Width + x) * 3;
+                int b = pixels[i], g = pixels[i + 1], r = pixels[i + 2];
+                if (b - r > 35 && b - g > 15) blue++;
+                if (r - b > 35 && r - g > 15) red++;
+            }
+        // English fixtures colour the marker blue/red. Japanese FRLG renders it dark, so only
+        // use colour when it is unambiguous and otherwise inspect the marker shape below.
+        if (blue >= 40 && blue >= red * 2) return '♂';
+        if (red >= 40 && red >= blue * 2) return '♀';
+        bool Dark(int x, int y)
+        {
+            int i = (y * image.Width + x) * 3;
+            return pixels[i] < 160 && pixels[i + 1] < 160 && pixels[i + 2] < 160;
+        }
+
+        bool[] inkColumns = new bool[image.Width];
+        for (int x = 0; x < image.Width; x++)
+            for (int y = 0; y < image.Height; y++)
+                if (Dark(x, y)) { inkColumns[x] = true; break; }
+        int right = Array.FindLastIndex(inkColumns, value => value);
+        if (right < 0) return null;
+        int separator = Math.Max(4, image.Height / 18), gap = 0, left = 0;
+        for (int x = right - 1; x >= 0; x--)
+        {
+            if (!inkColumns[x]) { gap++; continue; }
+            if (gap >= separator) { left = x + gap + 1; break; }
+            gap = 0;
+        }
+        int minY = image.Height, maxY = -1;
+        for (int y = 0; y < image.Height; y++)
+            for (int x = left; x <= right; x++)
+                if (Dark(x, y)) { minY = Math.Min(minY, y); maxY = Math.Max(maxY, y); }
+        int width = right - left + 1, height = maxY - minY + 1;
+        if (width < 12 || width > 60 || height < 18 || height > image.Height) return null;
+        for (int y = minY + height / 2; y <= maxY; y++)
+        {
+            int rowLeft = right + 1, rowRight = left - 1, count = 0;
+            for (int x = left; x <= right; x++)
+                if (Dark(x, y)) { rowLeft = Math.Min(rowLeft, x); rowRight = Math.Max(rowRight, x); count++; }
+            if (rowRight - rowLeft + 1 >= width * .65 && count >= width * .35) return '♀';
+        }
+        return '♂';
     }
 
     internal static bool NatureConfirmedByBothBackends(FrlgTextAttempt[] primary, FrlgTextAttempt[] secondary)

@@ -188,16 +188,20 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
-    public void NameConfirmationAcceptsExactPlusIndependentHighConfidenceFuzzyVote()
+    public void NameConfirmationAcceptsExactPlusIndependentConsistentVote()
     {
         FrlgTextAttempt exact = new("PaddleOCR", 184, "クラブ", .77, "クラブ", 0, true, "");
         FrlgTextAttempt supporting = new("PaddleOCR", 160, "ワラブ", .90, "クラブ", 1, true, "");
         Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting]), Is.True);
-        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting with { Confidence = .84 }]), Is.False);
-        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact with { Confidence = .69 }, supporting]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
+            [exact with { Confidence = .70 }, supporting with { Confidence = .68 }]), Is.True);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact with { Confidence = .59 }, supporting]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting with { Confidence = .59 }]), Is.False);
         Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants([exact, supporting with { Threshold = 184 }]), Is.False);
         Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
             [exact, supporting with { Candidate = "ラブカス" }]), Is.False);
+        Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
+            [exact with { LexiconAccepted = false }, supporting with { LexiconAccepted = false }]), Is.False);
         Assert.That(FrlgTextReader.NameConfirmedByPrimaryVariants(
             [exact with { Distance = 1 }, supporting]), Is.False);
         FrlgTextAttempt kinglerExact = new("PaddleOCR", 184, "キングラー", .90, "キングラー", 0, true, "");
@@ -239,18 +243,28 @@ public sealed class FrlgJapaneseTests
     public void DefaultWildRegionsKeepCompleteGlyphMargins()
     {
         Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_NAME", 1920, 1080),
-            Is.EqualTo(new Rect(290, 127, 360, 73)));
+            Is.EqualTo(new Rect(300, 122, 350, 72)));
         Assert.That(FrlgOcr.DefaultRegion("FRLG_JPN_WILD_LEVEL", 1920, 1080),
-            Is.EqualTo(new Rect(765, 127, 70, 77)));
+            Is.EqualTo(new Rect(720, 130, 115, 68)));
     }
 
     [Test]
-    public void WildLevelReadsDigitsWithoutTextEngine()
+    public void WildLevelReadsDigitsWithoutDigitTemplates()
     {
-        // Public battle fixture is English; the digit crop is shared. Japanese capture remains a hardware check.
+        // Public fixture is English, whose level sits farther right than the Japanese layout.
         using Mat frame = Fixture("Wild/eng_dragonair.jpg");
         string scene = "FRLG_JPN_WILD_LEVEL";
-        Assert.That(FrlgOcr.ReadFrame(frame, new Rect(755, 129, 70, 66), scene).Text, Is.EqualTo("28"));
+        Assert.That(FrlgOcr.ReadFrame(frame, new Rect(755, 129, 70, 66), scene).Text,
+            Is.EqualTo("28"));
+    }
+
+    [TestCase("Wild/eng_dragonair.jpg", '♂')]
+    [TestCase("Wild/eng_chansey.jpg", '♀')]
+    public void BattleGenderMarkerIsReadFromItsGlyph(string file, char expected)
+    {
+        using Mat frame = Fixture(file);
+        using Mat region = new(frame, new Rect(300, 122, 350, 72));
+        Assert.That(FrlgTextReader.DetectGenderMarker(region), Is.EqualTo(expected));
     }
 
     [Test]
