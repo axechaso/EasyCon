@@ -51,6 +51,21 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
+    public void StatDigitsUseLowErrorVotesAndIgnoreOneConflictingThreshold()
+    {
+        Assert.That(FrlgDigitReader.HasEnoughSeparation("stat", 60.0, 63.2), Is.True,
+            "A clean stat-font 8 may have a small runner-up margin.");
+        Assert.That(FrlgDigitReader.HasEnoughSeparation("stat", 71.0, 74.2), Is.False);
+        Assert.That(FrlgDigitReader.HasEnoughSeparation("tid", 60.0, 63.2), Is.False);
+
+        static FrlgReadAttempt Vote(int threshold, string text) => new(threshold, text, "",
+            [new(text[^1] - '0', new Rect(1, 1, 10, 20), 50, 54)]);
+        FrlgReadAttempt[] attempts = [Vote(175, "46"), Vote(190, "48"), Vote(205, "48")];
+        Assert.That(FrlgOcr.ConfirmDigitAttempts(attempts, "stat"), Is.EqualTo("48"));
+        Assert.That(FrlgOcr.ConfirmDigitAttempts(attempts, "level"), Is.Null);
+    }
+
+    [Test]
     public void TargetSetCannotForceUnrelatedExactSpecies()
     {
         using Mat frame = Fixture("Page1/deoxys_1_jpn.png");

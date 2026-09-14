@@ -130,7 +130,7 @@ internal static class FrlgDigitReader
                 // Never silently drop a digit and concatenate the remainder.
                 if (match.Rmsd > (definition.Kind == "tid" ? MaxRmsd : 105))
                     return Fail("poor-template-match");
-                if (match.RunnerUpRmsd - match.Rmsd < MinMargin)
+                if (!HasEnoughSeparation(definition.Kind, match.Rmsd, match.RunnerUpRmsd))
                     return Fail("ambiguous-digit");
             }
         }
@@ -164,6 +164,15 @@ internal static class FrlgDigitReader
                     ? "number-out-of-range" : "";
         }
         return new FrlgReadAttempt(threshold, failure.Length == 0 ? text : "", failure, matches.ToArray());
+    }
+
+    internal static bool HasEnoughSeparation(string kind, double rmsd, double runnerUpRmsd)
+    {
+        if (runnerUpRmsd - rmsd >= MinMargin) return true;
+        // The FRLG stat-font 8 is visually close to its runner-up template, even on a clean crop.
+        // Keep a low-error reading as a vote; FrlgOcr still requires the same complete value from
+        // at least two thresholds. TID and level retain the stricter per-glyph separation rule.
+        return kind is "stat" or "hp" && rmsd <= 70;
     }
 
     private static bool IsSlash(byte[] pixels, int width, Rect box)

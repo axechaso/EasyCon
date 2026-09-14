@@ -21,7 +21,7 @@ public static class FrlgOcr
 {
     public const string JapaneseTid = "FRLG_JPN_TID";
     public const string EnglishTid = "FRLG_EN_TID";
-    public const string Version = "170a-frlg-jpn-r8";
+    public const string Version = "170a-frlg-jpn-r9";
 
     public static bool IsScene(string scene) => FrlgScenes.Find(scene) != null;
 
@@ -79,10 +79,12 @@ public static class FrlgOcr
         FrlgReadAttempt[] attempts = FrlgDigitReader.Read(normalized, debugDirectory, definition);
         FrlgReadAttempt[] accepted = attempts.Where(a => a.Failure.Length == 0).ToArray();
         string[] candidates = accepted.Select(a => a.Text).Distinct(StringComparer.Ordinal).ToArray();
-        string failure = candidates.Length > 1 ? "threshold-conflict"
-            : accepted.Length < 2 ? "insufficient-threshold-agreement" : "";
-        string text = failure.Length == 0 ? candidates[0] : "";
-        int quality = text.Length == 0 ? 0 : (int)Math.Clamp(accepted.Min(a => a.Digits.Min(d =>
+        string? confirmed = ConfirmDigitAttempts(attempts, definition.Kind);
+        string failure = confirmed != null ? "" : candidates.Length > 1 ? "threshold-conflict"
+            : "insufficient-threshold-agreement";
+        string text = confirmed ?? "";
+        FrlgReadAttempt[] votes = accepted.Where(a => a.Text == text).ToArray();
+        int quality = text.Length == 0 ? 0 : (int)Math.Clamp(votes.Min(a => a.Digits.Min(d =>
             (d.RunnerUpRmsd - d.Rmsd) / Math.Max(d.RunnerUpRmsd, 1))) * 100, 0, 100);
         FrlgReadResult result = new(scene, text, failure, quality, timer.Elapsed.TotalMilliseconds, attempts);
         if (debugDirectory != null)
@@ -93,6 +95,17 @@ public static class FrlgOcr
                 JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true }));
         }
         return result;
+    }
+
+    internal static string? ConfirmDigitAttempts(FrlgReadAttempt[] attempts, string kind)
+    {
+        FrlgReadAttempt[] accepted = attempts.Where(a => a.Failure.Length == 0).ToArray();
+        string[] confirmed = accepted.GroupBy(a => a.Text, StringComparer.Ordinal)
+            .Where(group => group.Count() >= 2).Select(group => group.Key).ToArray();
+        if (confirmed.Length != 1) return null;
+        // TID and summary level keep the original all-accepted-votes-must-agree rule. Stat glyphs
+        // can contain one unstable threshold, so a unique two-of-three result is sufficient.
+        return kind is "stat" or "hp" || accepted.All(a => a.Text == confirmed[0]) ? confirmed[0] : null;
     }
 
     internal static string ValidateDigits(string text)
