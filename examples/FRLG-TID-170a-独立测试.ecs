@@ -1,0 +1,61 @@
+# FRLG TID 独立测试，必须使用本包 EasyCon 170a OCR 增强版。
+# 先手动停在训练家卡片，脚本只读取画面，不发送按键。
+# 默认是 1920x1080 日版区域；可在 FRLG OCR 窗口框选后替换下面五项。
+$FRLG场景 = "FRLG_JPN_TID"
+$FRLG区域X = 1288
+$FRLG区域Y = 124
+$FRLG区域宽 = 331
+$FRLG区域高 = 88
+$FRLG测试轮数 = 10
+$FRLG读取间隔 = 200
+$FRLG轮间隔 = 500
+
+$FRLG轮 = 0
+$FRLG原文A = ""
+$FRLG原文B = ""
+$FRLG原文C = ""
+$FRLG确认值 = ""
+$FRLG长度A = 0
+$FRLG长度B = 0
+$FRLG成功轮数 = 0
+$FRLG失败轮数 = 0
+$FRLG开始时间 = 0
+$FRLG本轮耗时 = 0
+
+PRINT "FRLG TID 测试：170a-frlg-tid-r1"
+PRINT "每轮3次读取，至少2次相同的完整五位TID才确认；前导零保留。"
+PRINT "场景=" & $FRLG场景
+PRINT "区域=" & $FRLG区域X & "," & $FRLG区域Y & "," & $FRLG区域宽 & "," & $FRLG区域高
+
+FOR $FRLG轮 = 1 TO $FRLG测试轮数
+    $FRLG开始时间 = TIME()
+    $FRLG原文A = OCR($FRLG区域X, $FRLG区域Y, $FRLG区域宽, $FRLG区域高, $FRLG场景)
+    WAIT $FRLG读取间隔
+    $FRLG原文B = OCR($FRLG区域X, $FRLG区域Y, $FRLG区域宽, $FRLG区域高, $FRLG场景)
+    WAIT $FRLG读取间隔
+    $FRLG原文C = OCR($FRLG区域X, $FRLG区域Y, $FRLG区域宽, $FRLG区域高, $FRLG场景)
+    $FRLG本轮耗时 = TIME() - $FRLG开始时间
+    $FRLG确认值 = ""
+    $FRLG长度A = LEN($FRLG原文A)
+    $FRLG长度B = LEN($FRLG原文B)
+    IF $FRLG长度A == 5
+        IF $FRLG原文A == $FRLG原文B or $FRLG原文A == $FRLG原文C
+            $FRLG确认值 = $FRLG原文A
+        ENDIF
+    ENDIF
+    IF $FRLG确认值 == "" and $FRLG长度B == 5
+        IF $FRLG原文B == $FRLG原文C
+            $FRLG确认值 = $FRLG原文B
+        ENDIF
+    ENDIF
+    PRINT "轮=" & $FRLG轮 & " A=[" & $FRLG原文A & "] B=[" & $FRLG原文B & "] C=[" & $FRLG原文C & "] 耗时ms=" & $FRLG本轮耗时
+    IF $FRLG确认值 != ""
+        $FRLG成功轮数 = $FRLG成功轮数 + 1
+        PRINT "确认TID=" & $FRLG确认值
+    ELSE
+        $FRLG失败轮数 = $FRLG失败轮数 + 1
+        PRINT "本轮未确认，保留画面，下一轮重试。"
+    ENDIF
+    WAIT $FRLG轮间隔
+NEXT
+PRINT "测试结束：确认轮数=" & $FRLG成功轮数 & " 失败轮数=" & $FRLG失败轮数
