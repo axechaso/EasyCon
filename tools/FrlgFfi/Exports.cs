@@ -8,6 +8,7 @@ namespace FrlgFfi;
 
 public static unsafe class Exports
 {
+    private const string PluginVersion = "FRLG_FFI_1";
     private const int MaximumFrameBase64Bytes = 20 * 1024 * 1024;
     private const int MaximumArgumentBytes = 64 * 1024;
     private static readonly object s_readerGate = new();
@@ -26,6 +27,9 @@ public static unsafe class Exports
 
     [ThreadStatic]
     private static string? t_lastDebug;
+
+    [UnmanagedCallersOnly(EntryPoint = "frlg_version", CallConvs = [typeof(CallConvCdecl)])]
+    public static nint Version() => CopyUtf8(PluginVersion);
 
     [UnmanagedCallersOnly(EntryPoint = "frlg_read", CallConvs = [typeof(CallConvCdecl)])]
     public static nint Read(byte* frameBase64, byte* scene, int x, int y, int width, int height,

@@ -1,5 +1,6 @@
 # Generated paths are absolute because current EasyCon FFI does not resolve
 # native DLL names relative to the script module directory.
+EXTERN FUNC FRLG_Version():STRING AS "frlg_version" FROM "@DLL@"
 EXTERN FUNC FRLG_Read($frame:STRING, $scene:STRING, $x:INT, $y:INT, $w:INT, $h:INT, $models:STRING):STRING AS "frlg_read" FROM "@DLL@"
 EXTERN FUNC FRLG_LastError():STRING AS "frlg_last_error" FROM "@DLL@"
 EXTERN FUNC FRLG_LastDebug():STRING AS "frlg_last_debug" FROM "@DLL@"

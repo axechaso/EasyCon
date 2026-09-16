@@ -20,7 +20,7 @@ Current EasyCon resolves native DLL paths relative to its application, not relat
     -ScriptLibDirectory 'D:\path\to\your-script\lib'
 ```
 
-Loading that `lib/FrlgFfi.ecs` module provides `FRLG_OCR(scene,x,y,w,h)`, `FRLG_LastError()`, `FRLG_LastDebug()` and `FRLG_Shutdown()`. Replace only the central Japanese OCR wrapper, not capture, RNG or battle control flow. For example:
+Loading that `lib/FrlgFfi.ecs` module provides `FRLG_Version()`, `FRLG_OCR(scene,x,y,w,h)`, `FRLG_LastError()`, `FRLG_LastDebug()` and `FRLG_Shutdown()`. `FRLG_Version()` is a frame-free startup probe; the Japanese script calls it before sending controller input. Replace only the central Japanese OCR wrapper, not capture, RNG or battle control flow. For example:
 
 ```ecs
 RETURN FRLG_OCR($日版场景键[$场景号], $日版区域X[$场景号], $日版区域Y[$场景号], $日版区域W[$场景号], $日版区域H[$场景号])
