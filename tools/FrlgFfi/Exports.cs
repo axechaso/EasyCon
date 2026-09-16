@@ -6,7 +6,7 @@ using System.Text;
 
 namespace FrlgFfi;
 
-public static unsafe class Exports
+public static unsafe partial class Exports
 {
     private const string PluginVersion = "FRLG_FFI_1";
     private const int MaximumFrameBase64Bytes = 20 * 1024 * 1024;
@@ -15,6 +15,7 @@ public static unsafe class Exports
     private static FrlgTextReader? s_reader;
     private static string? s_modelDirectory;
     private static string? s_nativeDirectory;
+    private static readonly Lazy<string> s_pluginDirectory = new(GetPluginDirectory);
 
     [ThreadStatic]
     private static nint t_returnBuffer;
@@ -42,6 +43,7 @@ public static unsafe class Exports
             string models = ReadUtf8(modelDirectory, MaximumArgumentBytes);
             if (encoded.Length == 0 || sceneName.Length == 0 || models.Length == 0)
                 return Fail("empty-argument");
+            models = ResolveModelDirectory(models);
             if (!FrlgOcr.IsScene(sceneName))
                 return Fail("unsupported-scene");
 
@@ -122,6 +124,41 @@ public static unsafe class Exports
         NativeLibrary.Load(Path.Combine(root, "onnxruntime.dll"));
         s_nativeDirectory = root;
     }
+
+    private static string ResolveModelDirectory(string modelDirectory)
+    {
+        if (Path.IsPathFullyQualified(modelDirectory))
+            return Path.GetFullPath(modelDirectory);
+        return Path.GetFullPath(Path.Combine(s_pluginDirectory.Value, modelDirectory));
+    }
+
+    private static string GetPluginDirectory()
+    {
+        if (!OperatingSystem.IsWindows())
+            return AppContext.BaseDirectory;
+
+        delegate* unmanaged[Cdecl]<nint> version = &Version;
+        const uint fromAddress = 0x00000004;
+        const uint unchangedRefCount = 0x00000002;
+        if (GetModuleHandleExW(fromAddress | unchangedRefCount, (nint)version, out nint module) == 0)
+            throw new InvalidOperationException($"GetModuleHandleExW failed: {Marshal.GetLastWin32Error()}");
+
+        const int capacity = 32768;
+        char* buffer = stackalloc char[capacity];
+        uint length = GetModuleFileNameW(module, buffer, capacity);
+        if (length == 0 || length >= capacity)
+            throw new InvalidOperationException($"GetModuleFileNameW failed: {Marshal.GetLastWin32Error()}");
+
+        string modulePath = new(buffer, 0, checked((int)length));
+        return Path.GetDirectoryName(modulePath)
+            ?? throw new InvalidOperationException("FRLG FFI module directory is unavailable.");
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleExW", SetLastError = true)]
+    private static partial int GetModuleHandleExW(uint flags, nint address, out nint module);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleFileNameW", SetLastError = true)]
+    private static partial uint GetModuleFileNameW(nint module, char* fileName, int size);
 
     private static string ReadUtf8(byte* pointer, int maximumBytes)
     {

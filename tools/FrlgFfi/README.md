@@ -12,13 +12,15 @@ dotnet publish tools/FrlgFfi/FrlgFfi.csproj -c Release -r win-x64 -o tools/FrlgF
 
 Keep the published `FrlgFfi.dll`, `models/frlg`, `ezcv_native.dll`, `opencv_world500.dll`, `onnxruntime.dll`, Tesseract/leptonica DLLs and remaining native dependencies together in one plugin directory. The `dist/` directory is ignored by Git; it is a local test artifact, not game content to upload to EasyCon upstream.
 
-Current EasyCon resolves native DLL paths relative to its application, not relative to a loaded script. The installer therefore generates absolute DLL and model paths into a small ECS module, and refuses to overwrite an existing module:
+Use an EasyCon desktop build that resolves relative FFI paths from the main script directory. The installer copies the native package beside the script's `lib` directory and writes portable declarations; it refuses to overwrite an existing package or module:
 
 ```powershell
 & tools/FrlgFfi/Install-FrlgFfi.ps1 `
     -PluginRoot 'D:\path\to\plugin' `
     -ScriptLibDirectory 'D:\path\to\your-script\lib'
 ```
+
+The resulting script layout contains `FrlgFfi/FrlgFfi.dll`, all native dependencies, `FrlgFfi/models/frlg`, and `lib/FrlgFfi.ecs`. It can be moved as one directory, including to a path containing spaces. The plugin resolves `models/frlg` from its own DLL directory.
 
 Loading that `lib/FrlgFfi.ecs` module provides `FRLG_Version()`, `FRLG_OCR(scene,x,y,w,h)`, `FRLG_LastError()`, `FRLG_LastDebug()` and `FRLG_Shutdown()`. `FRLG_Version()` is a frame-free startup probe; the Japanese script calls it before sending controller input. Replace only the central Japanese OCR wrapper, not capture, RNG or battle control flow. For example:
 
