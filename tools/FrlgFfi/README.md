@@ -30,6 +30,6 @@ RETURN FRLG_OCR($日版场景键[$场景号], $日版区域X[$场景号], $日�
 
 ## Verified locally
 
-Against `upstream/dev` with two generic FFI fixes applied locally, actual ECS compilation and VM execution returned the expected Japanese summary name, nature, level, HP and five stats on the included public fixtures (12/12). A mismatched target was rejected with an empty result and nonempty error. Both process and disk-cache FFI signature regression tests passed. This validates the plugin-to-FFI integration, but does **not** yet validate live capture, every species, TID or wild battle scenes.
+Against `upstream/dev` with two generic FFI fixes applied locally, actual ECS compilation and VM execution returned the expected Japanese summary name, nature, level, HP and five stats on the included public fixtures (12/12). A mismatched target was rejected with an empty result and nonempty error. Both process and disk-cache FFI signature regression tests passed. Read-only ECS scripts additionally returned `ニドラン♀ / 22` from a cached wild battle capture and `45345` from a trainer-card fixture. This validates the plugin-to-FFI integration, but does **not** yet validate live capture or every species.
 
 The two EasyCon fixes contain no FRLG data: free UTF-8 arguments with their matching allocator (`FreeCoTaskMem`), and recompile cached modules containing external native calls until ECM artifacts retain FFI signatures. Without the second fix, repeated compilation can produce an image containing FFI calls but no native symbol table, causing `原生函数未实现` at runtime.
