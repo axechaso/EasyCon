@@ -24,7 +24,7 @@ public static class FrlgOcr
 {
     public const string JapaneseTid = "FRLG_JPN_TID";
     public const string EnglishTid = "FRLG_EN_TID";
-    public const string Version = "170a-frlg-jpn-r10";
+    public const string Version = "170a-frlg-jpn-r11";
 
     public static bool IsScene(string scene) => FrlgScenes.Find(scene) != null;
 
@@ -66,7 +66,13 @@ public static class FrlgOcr
         Cv2.Resize(roi.Channels() == 3 ? roi : color, normalized, new Size(width, height));
 
         FrlgSceneDefinition definition = FrlgScenes.Find(scene)!;
-        if (!definition.IsText && scene.Contains(':')) return Fail("invalid-scene-options");
+        if (!definition.IsText && scene.Contains(':'))
+        {
+            if (definition.Kind is not ("stat" or "hp")
+                || !FrlgScenes.TryNumericBounds(scene, definition, out int minimum, out int maximum))
+                return Fail("invalid-scene-options");
+            definition = definition with { Minimum = minimum, Maximum = maximum };
+        }
         if (definition.Kind == "wild-level")
         {
             if (textReader != null) return textReader.ReadNumber(normalized, scene, debugDirectory);

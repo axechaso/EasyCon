@@ -67,6 +67,31 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
+    public void StatRangeCanRecoverAnAmbiguousRunnerUpWithoutGuessingInRangePrimaries()
+    {
+        FrlgDigitMatch ambiguousSix = new(6, new Rect(1, 1, 10, 20), 57.3, 57.4) { RunnerUpDigit = 8 };
+        FrlgDigitMatch confidentFive = new(5, new Rect(12, 1, 10, 20), 60, 75) { RunnerUpDigit = 6 };
+        Assert.That(FrlgDigitReader.RecoverNumber([ambiguousSix, confidentFive], 80, 90), Is.EqualTo("85"));
+        Assert.That(FrlgDigitReader.RecoverNumber([ambiguousSix, confidentFive], 50, 60), Is.Null);
+    }
+
+    [Test]
+    public void NumericSceneBoundsAreValidatedAndApplied()
+    {
+        FrlgSceneDefinition attack = FrlgScenes.Find("FRLG_JPN_ATTACK")!;
+        Assert.That(FrlgScenes.TryNumericBounds("FRLG_JPN_ATTACK:115-125", attack,
+            out int minimum, out int maximum), Is.True);
+        Assert.That((minimum, maximum), Is.EqualTo((115, 125)));
+        Assert.That(FrlgScenes.TryNumericBounds("FRLG_JPN_ATTACK:125-115", attack,
+            out _, out _), Is.False);
+
+        using Mat frame = Fixture("Page2/deoxys_1_jpn.png");
+        Rect roi = FrlgOcr.DefaultRegion("FRLG_JPN_ATTACK", frame.Width, frame.Height);
+        Assert.That(FrlgOcr.ReadFrame(frame, roi, "FRLG_JPN_ATTACK:115-125").Text, Is.EqualTo("119"));
+        Assert.That(FrlgOcr.ReadFrame(frame, roi, "FRLG_JPN_ATTACK:120-125").Text, Is.Empty);
+    }
+
+    [Test]
     public void TargetSetCannotForceUnrelatedExactSpecies()
     {
         using Mat frame = Fixture("Page1/deoxys_1_jpn.png");

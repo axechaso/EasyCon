@@ -1,4 +1,5 @@
 using EzCv;
+using System.Globalization;
 
 namespace EasyCon.Capture.Ocr.Frlg;
 
@@ -34,6 +35,19 @@ public static class FrlgScenes
     public static FrlgSceneDefinition? Find(string scene) => All.FirstOrDefault(s => s.Key == BaseKey(scene));
     public static string[] Targets(string scene) => scene.Contains(':')
         ? scene.Split(':', 2)[1].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
+
+    public static bool TryNumericBounds(string scene, FrlgSceneDefinition definition,
+        out int minimum, out int maximum)
+    {
+        minimum = definition.Minimum;
+        maximum = definition.Maximum;
+        if (!scene.Contains(':')) return true;
+        string[] bounds = scene.Split(':', 2)[1].Split('-', 2);
+        return bounds.Length == 2
+            && int.TryParse(bounds[0], NumberStyles.None, CultureInfo.InvariantCulture, out minimum)
+            && int.TryParse(bounds[1], NumberStyles.None, CultureInfo.InvariantCulture, out maximum)
+            && minimum >= definition.Minimum && maximum <= definition.Maximum && minimum <= maximum;
+    }
 
     public static Rect DefaultRegion(string scene, int width, int height)
     {

@@ -152,6 +152,9 @@ internal static class FrlgDigitReader
         if (definition.Kind == "tid") failure = FrlgOcr.ValidateDigits(text);
         else
         {
+            FrlgDigitMatch[] valueMatches = matches.ToArray();
+            int valueMinimum = definition.Minimum;
+            bool currentExceedsMaximum = false;
             if (slashIndex is int separator)
             {
                 if (separator < 1 || separator > 3 || text.Length - separator is < 1 or > 3)
@@ -159,47 +162,49 @@ internal static class FrlgDigitReader
                 string current = text[..separator];
                 text = text[separator..];
                 int currentValue = int.Parse(current);
-                if (currentValue > int.Parse(text))
-                {
-                    string? recovered = RecoverHpMaximum(matches, separator, currentValue, definition.Maximum);
-                    if (recovered == null) return Fail("hp-current-exceeds-maximum");
-                    text = recovered;
-                }
+                currentExceedsMaximum = currentValue > int.Parse(text);
+                valueMinimum = Math.Max(valueMinimum, currentValue);
+                valueMatches = matches.Skip(separator).ToArray();
+            }
+            if (!int.TryParse(text, out int primaryValue)
+                || primaryValue < valueMinimum || primaryValue > definition.Maximum)
+            {
+                string? recovered = RecoverNumber(valueMatches, valueMinimum, definition.Maximum);
+                if (recovered != null) text = recovered;
             }
             failure = text.Length > 3 || text.Length > 1 && text[0] == '0' ? "invalid-number-length"
-                : !int.TryParse(text, out int value) || value < definition.Minimum || value > definition.Maximum
-                    ? "number-out-of-range" : "";
+                : !int.TryParse(text, out int value) || value < valueMinimum || value > definition.Maximum
+                    ? currentExceedsMaximum ? "hp-current-exceeds-maximum" : "number-out-of-range" : "";
         }
         return new FrlgReadAttempt(threshold, failure.Length == 0 ? text : "", failure, matches.ToArray());
     }
 
-    private static string? RecoverHpMaximum(List<FrlgDigitMatch> matches, int separator,
-        int current, int maximumAllowed)
+    internal static string? RecoverNumber(IReadOnlyList<FrlgDigitMatch> digits,
+        int minimumAllowed, int maximumAllowed)
     {
-        FrlgDigitMatch[] maximumDigits = matches.Skip(separator).ToArray();
         string? best = null;
         double bestPenalty = double.PositiveInfinity;
-        int combinations = 1 << maximumDigits.Length;
+        int combinations = 1 << digits.Count;
         for (int mask = 1; mask < combinations; mask++)
         {
-            char[] digits = new char[maximumDigits.Length];
+            char[] candidateDigits = new char[digits.Count];
             double penalty = 0;
             bool valid = true;
-            for (int i = 0; i < maximumDigits.Length; i++)
+            for (int i = 0; i < digits.Count; i++)
             {
-                FrlgDigitMatch match = maximumDigits[i];
+                FrlgDigitMatch match = digits[i];
                 bool useRunnerUp = (mask & 1 << i) != 0;
                 if (useRunnerUp && (match.RunnerUpDigit < 0 || match.RunnerUpRmsd - match.Rmsd >= MinMargin))
                 {
                     valid = false;
                     break;
                 }
-                digits[i] = (char)('0' + (useRunnerUp ? match.RunnerUpDigit : match.Digit));
+                candidateDigits[i] = (char)('0' + (useRunnerUp ? match.RunnerUpDigit : match.Digit));
                 if (useRunnerUp) penalty += match.RunnerUpRmsd - match.Rmsd;
             }
-            if (!valid || digits.Length > 1 && digits[0] == '0') continue;
-            string candidate = new(digits);
-            if (!int.TryParse(candidate, out int value) || value < current || value > maximumAllowed) continue;
+            if (!valid || candidateDigits.Length > 1 && candidateDigits[0] == '0') continue;
+            string candidate = new(candidateDigits);
+            if (!int.TryParse(candidate, out int value) || value < minimumAllowed || value > maximumAllowed) continue;
             if (penalty < bestPenalty)
             {
                 best = candidate;
