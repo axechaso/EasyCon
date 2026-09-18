@@ -9,6 +9,8 @@ namespace FrlgFfi;
 public static unsafe partial class Exports
 {
     private const string PluginVersion = "FRLG_FFI_1";
+    private const string FailureImageFileName = "frlg_last_failure.png";
+    private const string FailureTextFileName = "frlg_last_failure.txt";
     private const int MaximumFrameBase64Bytes = 20 * 1024 * 1024;
     private const int MaximumArgumentBytes = 64 * 1024;
     private static readonly object s_readerGate = new();
@@ -61,8 +63,14 @@ public static unsafe partial class Exports
                 FrlgReadResult result = FrlgOcr.ReadFrame(frame, new Rect(x, y, width, height),
                     sceneName, textReader: s_reader);
                 t_lastError = result.Failure;
-                t_lastDebug = string.Join(" | ", result.TextAttempts.Select(attempt =>
-                    $"{attempt.Backend}/{attempt.Threshold}:raw={attempt.Raw};candidate={attempt.Candidate};failure={attempt.Failure}"));
+                t_lastDebug = FormatDebug(result);
+                if (result.Text.Length == 0)
+                {
+                    string? saveError = TrySaveFailureArtifacts(png, sceneName, x, y, width, height,
+                        models, t_lastError, t_lastDebug);
+                    if (saveError != null)
+                        t_lastDebug = AppendDebug(t_lastDebug, $"failure-artifact-error={saveError}");
+                }
                 return CopyUtf8(result.Text);
             }
         }
@@ -109,6 +117,53 @@ public static unsafe partial class Exports
         t_lastError = error;
         t_lastDebug = null;
         return CopyUtf8(string.Empty);
+    }
+
+    private static string? TrySaveFailureArtifacts(byte[] frame, string scene, int x, int y,
+        int width, int height, string models, string? failure, string? debug)
+    {
+        try
+        {
+            string cacheDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EasyCon", "Cache");
+            Directory.CreateDirectory(cacheDirectory);
+            File.WriteAllBytes(Path.Combine(cacheDirectory, FailureImageFileName), frame);
+
+            string details = string.Join(Environment.NewLine,
+            [
+                $"time={DateTimeOffset.Now:O}",
+                $"scene={scene}",
+                $"roi={x},{y},{width},{height}",
+                $"models={models}",
+                $"failure={failure ?? string.Empty}",
+                $"debug={debug ?? string.Empty}"
+            ]);
+            File.WriteAllText(Path.Combine(cacheDirectory, FailureTextFileName), details,
+                new UTF8Encoding(false));
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    private static string AppendDebug(string? current, string addition)
+    {
+        return string.IsNullOrEmpty(current) ? addition : $"{current} | {addition}";
+    }
+
+    private static string FormatDebug(FrlgReadResult result)
+    {
+        IEnumerable<string> textAttempts = result.TextAttempts.Select(attempt =>
+            $"{attempt.Backend}/{attempt.Threshold}:raw={attempt.Raw};candidate={attempt.Candidate};failure={attempt.Failure}");
+        IEnumerable<string> digitAttempts = result.Attempts.Select(attempt =>
+            $"threshold={attempt.Threshold};text={attempt.Text};failure={attempt.Failure};digits="
+            + string.Join(",", attempt.Digits.Select(digit =>
+                $"{digit.Digit}/{digit.RunnerUpDigit}@{digit.Bounds.X}:{digit.Bounds.Y}:{digit.Bounds.Width}:{digit.Bounds.Height}"
+                + $"[{digit.Rmsd:F1}/{digit.RunnerUpRmsd:F1}]")));
+        return string.Join(" | ", textAttempts.Concat(digitAttempts));
     }
 
     private static void EnsureNativeLibraries(string modelDirectory)

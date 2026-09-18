@@ -30,6 +30,7 @@ public sealed class FrlgJapaneseTests
     [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SP_ATTACK", "119")]
     [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SP_DEFENSE", "23")]
     [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SPEED", "107")]
+    [TestCase("Page2/nidorino_hp_85_live_jpn.png", "FRLG_JPN_HP", "85")]
     public void JapaneseSummaryReadsThroughEcs(string file, string scene, string expected)
     {
         using Mat frame = Fixture(file);
@@ -152,6 +153,9 @@ public sealed class FrlgJapaneseTests
     }
 
     [TestCase("しんちょうなせ", "しんちょう", 0)]
+    [TestCase("おとなしいせいかく", "おとなしい", 0)]
+    [TestCase("おとなしいせいか", "おとなしい", 0)]
+    [TestCase("おとなしいせいかご", "おとなしい", 1)]
     [TestCase("きまぐれなせい", "きまぐれ", 0)]
     [TestCase("きまくれなせい", "きまぐれ", 1)]
     [TestCase("きまべれなせい", "きまぐれ", 1)]
@@ -179,6 +183,7 @@ public sealed class FrlgJapaneseTests
     {
         Assert.That(FrlgJapaneseLexicon.Match("しんちょう", true, requireNatureDescriptor: true).Accepted, Is.False);
         Assert.That(FrlgJapaneseLexicon.Match("しんちょうなせいかく", true, requireNatureDescriptor: true).Accepted, Is.True);
+        Assert.That(FrlgJapaneseLexicon.Match("おとなしいせいかく", true, requireNatureDescriptor: true).Accepted, Is.True);
     }
 
     [Test]

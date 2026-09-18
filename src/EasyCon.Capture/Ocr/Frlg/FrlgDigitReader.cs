@@ -123,7 +123,8 @@ internal static class FrlgDigitReader
                 (int Digit, double Score)[] scores = templates
                     .Select((template, digit) => (Digit: digit, Score: Rmsd(crop, template)))
                     .OrderBy(item => item.Score).ToArray();
-                FrlgDigitMatch match = new(scores[0].Digit, glyph, scores[0].Score, scores[1].Score);
+                FrlgDigitMatch match = new(scores[0].Digit, glyph, scores[0].Score, scores[1].Score)
+                { RunnerUpDigit = scores[1].Digit };
                 matches.Add(match);
                 if (debugDirectory != null)
                     File.WriteAllBytes(Path.Combine(debugDirectory, $"digit-{threshold}-{matches.Count}.png"), crop.ToBytes());
@@ -157,13 +158,55 @@ internal static class FrlgDigitReader
                     return Fail("invalid-hp-pair");
                 string current = text[..separator];
                 text = text[separator..];
-                if (int.Parse(current) > int.Parse(text)) return Fail("hp-current-exceeds-maximum");
+                int currentValue = int.Parse(current);
+                if (currentValue > int.Parse(text))
+                {
+                    string? recovered = RecoverHpMaximum(matches, separator, currentValue, definition.Maximum);
+                    if (recovered == null) return Fail("hp-current-exceeds-maximum");
+                    text = recovered;
+                }
             }
             failure = text.Length > 3 || text.Length > 1 && text[0] == '0' ? "invalid-number-length"
                 : !int.TryParse(text, out int value) || value < definition.Minimum || value > definition.Maximum
                     ? "number-out-of-range" : "";
         }
         return new FrlgReadAttempt(threshold, failure.Length == 0 ? text : "", failure, matches.ToArray());
+    }
+
+    private static string? RecoverHpMaximum(List<FrlgDigitMatch> matches, int separator,
+        int current, int maximumAllowed)
+    {
+        FrlgDigitMatch[] maximumDigits = matches.Skip(separator).ToArray();
+        string? best = null;
+        double bestPenalty = double.PositiveInfinity;
+        int combinations = 1 << maximumDigits.Length;
+        for (int mask = 1; mask < combinations; mask++)
+        {
+            char[] digits = new char[maximumDigits.Length];
+            double penalty = 0;
+            bool valid = true;
+            for (int i = 0; i < maximumDigits.Length; i++)
+            {
+                FrlgDigitMatch match = maximumDigits[i];
+                bool useRunnerUp = (mask & 1 << i) != 0;
+                if (useRunnerUp && (match.RunnerUpDigit < 0 || match.RunnerUpRmsd - match.Rmsd >= MinMargin))
+                {
+                    valid = false;
+                    break;
+                }
+                digits[i] = (char)('0' + (useRunnerUp ? match.RunnerUpDigit : match.Digit));
+                if (useRunnerUp) penalty += match.RunnerUpRmsd - match.Rmsd;
+            }
+            if (!valid || digits.Length > 1 && digits[0] == '0') continue;
+            string candidate = new(digits);
+            if (!int.TryParse(candidate, out int value) || value < current || value > maximumAllowed) continue;
+            if (penalty < bestPenalty)
+            {
+                best = candidate;
+                bestPenalty = penalty;
+            }
+        }
+        return best;
     }
 
     internal static bool HasEnoughSeparation(string kind, double rmsd, double runnerUpRmsd)

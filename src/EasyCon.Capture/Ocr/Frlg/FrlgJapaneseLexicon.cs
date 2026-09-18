@@ -134,12 +134,14 @@ public static class FrlgJapaneseLexicon
     private static int NatureClauseDistance(string text, Entry entry)
     {
         string name = Normalize(entry.Text);
-        string descriptor = Normalize("なせいかく");
         int suffixLength = text.Length - name.Length;
-        // The fixed descriptor can stop after なせ / なせい / なせいか. Keep the full nature prefix.
-        if (suffixLength < 2 || suffixLength > descriptor.Length) return 99;
+        // Depending on the adjective, the game uses either "なせいかく" or "せいかく".
+        // Both descriptors may stop early when the fixed-width region ends before the next clause.
+        string[] descriptors = [Normalize("なせいかく"), Normalize("せいかく")];
+        if (suffixLength < 2 || suffixLength > descriptors.Max(d => d.Length)) return 99;
         string suffix = text[name.Length..];
-        int suffixDistance = Distance(suffix, descriptor[..suffixLength]);
+        int suffixDistance = descriptors.Where(d => suffixLength <= d.Length)
+            .Select(d => Distance(suffix, d[..suffixLength])).DefaultIfEmpty(99).Min();
         if (suffixDistance > (suffixLength >= 3 ? 1 : 0)) return 99;
         int nameDistance = Distance(text[..name.Length], name);
         return nameDistance <= 1 ? nameDistance + suffixDistance : 99;

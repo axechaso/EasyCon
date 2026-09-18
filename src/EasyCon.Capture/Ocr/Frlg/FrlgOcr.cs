@@ -5,7 +5,10 @@ using System.Text.Json;
 
 namespace EasyCon.Capture.Ocr.Frlg;
 
-public sealed record FrlgDigitMatch(int Digit, Rect Bounds, double Rmsd, double RunnerUpRmsd);
+public sealed record FrlgDigitMatch(int Digit, Rect Bounds, double Rmsd, double RunnerUpRmsd)
+{
+    public int RunnerUpDigit { get; init; } = -1;
+}
 public sealed record FrlgReadAttempt(int Threshold, string Text, string Failure, FrlgDigitMatch[] Digits);
 
 /// <summary>Quality is a template separation score, not a calibrated probability.</summary>
@@ -21,7 +24,7 @@ public static class FrlgOcr
 {
     public const string JapaneseTid = "FRLG_JPN_TID";
     public const string EnglishTid = "FRLG_EN_TID";
-    public const string Version = "170a-frlg-jpn-r9";
+    public const string Version = "170a-frlg-jpn-r10";
 
     public static bool IsScene(string scene) => FrlgScenes.Find(scene) != null;
 
