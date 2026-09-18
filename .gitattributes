@@ -2,6 +2,11 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+# Keep the pinned third-party license byte-for-byte identical to its resource hash.
+docs/licenses/PokemonAutomation-MIT.txt -text whitespace=cr-at-eol
+docs/licenses/*Apache-2.0.txt -text whitespace=cr-at-eol
+src/EasyCon.Capture/Ocr/Frlg/Resources/Text/*.json -text whitespace=cr-at-eol
+test/EasyCon.Tests/TestData/Frlg/**/*.txt -text whitespace=cr-at-eol
 
 ###############################################################################
 # Set default behavior for command prompt diff.

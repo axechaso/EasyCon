@@ -1,9 +1,9 @@
-using System.Text;
 using EasyCon.Script.Ssa;
 using EasyCon.Script.Symbols;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Reflection;
+using System.Text;
 
 namespace EasyCon.Script.Jit;
 
@@ -178,19 +178,19 @@ public static class SsaJitCompiler
     {
         switch (inst.Op)
         {
-            case SsaOp.ConstInt:    sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetInt()};"); break;
-            case SsaOp.ConstBool:   sb.AppendLine($"{indent}v{inst.Id} = {(inst.Const.GetBool() ? 1 : 0)};"); break;
-            case SsaOp.ConstByte:   sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetByte()};"); break;
-            case SsaOp.ConstUInt:   sb.AppendLine($"{indent}v{inst.Id} = unchecked((int){inst.Const.GetUInt()}u);"); break;
+            case SsaOp.ConstInt: sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetInt()};"); break;
+            case SsaOp.ConstBool: sb.AppendLine($"{indent}v{inst.Id} = {(inst.Const.GetBool() ? 1 : 0)};"); break;
+            case SsaOp.ConstByte: sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetByte()};"); break;
+            case SsaOp.ConstUInt: sb.AppendLine($"{indent}v{inst.Id} = unchecked((int){inst.Const.GetUInt()}u);"); break;
             case SsaOp.ConstUInt64: sb.AppendLine($"{indent}v{inst.Id} = unchecked((long){inst.Const.GetUInt64()}UL);"); break;
             case SsaOp.ConstDouble: sb.AppendLine(Culture($"        v{inst.Id} = {inst.Const.GetDouble():G17}d;", inst.Const.GetDouble())); break;
             case SsaOp.ConstString: sb.AppendLine($"{indent}v{inst.Id} = \"{Escape(inst.ConstString ?? "")}\";"); break;
-            case SsaOp.ConstPtr:    sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetPtr()}L;"); break;
+            case SsaOp.ConstPtr: sb.AppendLine($"{indent}v{inst.Id} = {inst.Const.GetPtr()}L;"); break;
 
-            case SsaOp.LoadGlobal:  sb.AppendLine($"{indent}v{inst.Id} = g_{Sanitize((inst.Aux as VariableSymbol)!.Name)};"); break;
+            case SsaOp.LoadGlobal: sb.AppendLine($"{indent}v{inst.Id} = g_{Sanitize((inst.Aux as VariableSymbol)!.Name)};"); break;
             case SsaOp.StoreGlobal: sb.AppendLine($"{indent}g_{Sanitize((inst.Aux as VariableSymbol)!.Name)} = {Fmt(inst.Arg0)};"); break;
-            case SsaOp.LoadLocal:   sb.AppendLine($"{indent}v{inst.Id} = l_{Sanitize((inst.Aux as VariableSymbol)!.Name)};"); break;
-            case SsaOp.StoreLocal:  sb.AppendLine($"{indent}l_{Sanitize((inst.Aux as VariableSymbol)!.Name)} = {Fmt(inst.Arg0)};"); break;
+            case SsaOp.LoadLocal: sb.AppendLine($"{indent}v{inst.Id} = l_{Sanitize((inst.Aux as VariableSymbol)!.Name)};"); break;
+            case SsaOp.StoreLocal: sb.AppendLine($"{indent}l_{Sanitize((inst.Aux as VariableSymbol)!.Name)} = {Fmt(inst.Arg0)};"); break;
 
             case SsaOp.AddInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} + {Fmt(inst.Arg1)};"); break;
             case SsaOp.SubInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} - {Fmt(inst.Arg1)};"); break;
@@ -218,50 +218,50 @@ public static class SsaJitCompiler
             case SsaOp.ModUInt64: sb.AppendLine($"{indent}v{inst.Id} = unchecked((long)((ulong){Fmt(inst.Arg0)} % (ulong){Fmt(inst.Arg1)}));"); break;
 
             case SsaOp.AndInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} & {Fmt(inst.Arg1)};"); break;
-            case SsaOp.OrInt:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} | {Fmt(inst.Arg1)};"); break;
+            case SsaOp.OrInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} | {Fmt(inst.Arg1)};"); break;
             case SsaOp.XorInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} ^ {Fmt(inst.Arg1)};"); break;
             case SsaOp.ShlInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} << {Fmt(inst.Arg1)};"); break;
             case SsaOp.ShrInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} >> {Fmt(inst.Arg1)};"); break;
             case SsaOp.NotInt: sb.AppendLine($"{indent}v{inst.Id} = ~{Fmt(inst.Arg0)};"); break;
 
-            case SsaOp.EqInt:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.LtInt:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.LtInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.LeqInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} <= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.GtInt:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.GtInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.GeqInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} >= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
 
-            case SsaOp.EqUInt:  sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} == (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} == (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} != (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.LtUInt:  sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} < (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.LtUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} < (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.LeqUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} <= (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.GtUInt:  sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} > (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.GtUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} > (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.GeqUInt: sb.AppendLine($"{indent}v{inst.Id} = (uint){Fmt(inst.Arg0)} >= (uint){Fmt(inst.Arg1)} ? 1 : 0;"); break;
 
-            case SsaOp.EqDouble:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.LtDouble:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.LtDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.LeqDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} <= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.GtDouble:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.GtDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.GeqDouble: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} >= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
 
-            case SsaOp.EqUInt64:  sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} == (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} == (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} != (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.LtUInt64:  sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} < (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.LtUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} < (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.LeqUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} <= (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.GtUInt64:  sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} > (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.GtUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} > (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.GeqUInt64: sb.AppendLine($"{indent}v{inst.Id} = (ulong){Fmt(inst.Arg0)} >= (ulong){Fmt(inst.Arg1)} ? 1 : 0;"); break;
 
-            case SsaOp.EqBool:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqBool: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqBool: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.EqByte:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.NeqByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.LtByte:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.LtByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} < {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.LeqByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} <= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.GtByte:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.GtByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} > {Fmt(inst.Arg1)} ? 1 : 0;"); break;
             case SsaOp.GeqByte: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} >= {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.EqPtr:   sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
-            case SsaOp.NeqPtr:  sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.EqPtr: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == {Fmt(inst.Arg1)} ? 1 : 0;"); break;
+            case SsaOp.NeqPtr: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} != {Fmt(inst.Arg1)} ? 1 : 0;"); break;
 
             case SsaOp.EqString:
                 sb.AppendLine($"{indent}v{inst.Id} = string.Equals({Fmt(inst.Arg0)}, {Fmt(inst.Arg1)}, StringComparison.Ordinal) ? 1 : 0;"); break;
@@ -271,19 +271,19 @@ public static class SsaJitCompiler
             case SsaOp.LogicNot:
                 sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)} == 0 ? 1 : 0;"); break;
 
-            case SsaOp.ConvBoolToInt:   sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
-            case SsaOp.ConvByteToInt:   sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
-            case SsaOp.ConvIntToUInt:   sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvBoolToInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvByteToInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvIntToUInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvIntToUInt64: sb.AppendLine($"{indent}v{inst.Id} = (long){Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvIntToDouble: sb.AppendLine($"{indent}v{inst.Id} = (double){Fmt(inst.Arg0)};"); break;
-            case SsaOp.ConvIntToByte:   sb.AppendLine($"{indent}v{inst.Id} = (byte){Fmt(inst.Arg0)};"); break;
-            case SsaOp.ConvIntToPtr:    sb.AppendLine($"{indent}v{inst.Id} = (long){Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvIntToByte: sb.AppendLine($"{indent}v{inst.Id} = (byte){Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvIntToPtr: sb.AppendLine($"{indent}v{inst.Id} = (long){Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvUIntToUInt64: sb.AppendLine($"{indent}v{inst.Id} = (long)(uint){Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvUInt64ToPtr: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
-            case SsaOp.ConvPtrToInt:    sb.AppendLine($"{indent}v{inst.Id} = (int){Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvPtrToInt: sb.AppendLine($"{indent}v{inst.Id} = (int){Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvDoubleToInt: sb.AppendLine($"{indent}v{inst.Id} = (int){Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvUInt64ToInt: sb.AppendLine($"{indent}v{inst.Id} = unchecked((int)(ulong){Fmt(inst.Arg0)});"); break;
-            case SsaOp.ConvToInt:       sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
+            case SsaOp.ConvToInt: sb.AppendLine($"{indent}v{inst.Id} = {Fmt(inst.Arg0)};"); break;
             case SsaOp.ConvToString:
                 SyncArgs(sb, inst, indent);
                 sb.AppendLine($"{indent}Evaluator.ExecuteInstructionPublic(Ops[{inst.Id}]);");
@@ -485,14 +485,14 @@ public static class SsaJitCompiler
         {
             return v.Op switch
             {
-                SsaOp.ConstInt    => v.Const.GetInt().ToString(),
-                SsaOp.ConstBool   => v.Const.GetBool() ? "1" : "0",
-                SsaOp.ConstByte   => v.Const.GetByte().ToString(),
-                SsaOp.ConstUInt   => $"unchecked((int){v.Const.GetUInt()}u)",
+                SsaOp.ConstInt => v.Const.GetInt().ToString(),
+                SsaOp.ConstBool => v.Const.GetBool() ? "1" : "0",
+                SsaOp.ConstByte => v.Const.GetByte().ToString(),
+                SsaOp.ConstUInt => $"unchecked((int){v.Const.GetUInt()}u)",
                 SsaOp.ConstUInt64 => $"unchecked((long){v.Const.GetUInt64()}UL)",
                 SsaOp.ConstDouble => $"{v.Const.GetDouble():G17}d",
                 SsaOp.ConstString => $"\"{Escape(v.ConstString ?? "")}\"",
-                SsaOp.ConstPtr    => $"{v.Const.GetPtr()}L",
+                SsaOp.ConstPtr => $"{v.Const.GetPtr()}L",
                 _ => "0"
             };
         }
