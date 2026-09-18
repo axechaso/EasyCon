@@ -75,6 +75,12 @@ public sealed class FrlgTextReader : IDisposable
                 // Require two strong, complete, consistent primary reads; otherwise obtain a second opinion.
                 if (primary.Length == 1 && paddle.Count(a => a.Confidence >= .80 && a.Distance == 0) >= 2)
                     return Result(primary[0], "", (int)(paddle.Average(a => a.Confidence) * 100));
+                if (nature && ConfirmedNatureFromPrimaryVariants(paddle) is string confirmedNature)
+                {
+                    FrlgTextAttempt[] votes = paddle.Where(a => a.Candidate == confirmedNature
+                        && a.Distance <= 1 && a.Confidence >= .75).ToArray();
+                    return Result(confirmedNature, "", (int)(votes.Average(a => a.Confidence) * 100));
+                }
                 if (!nature && ConfirmedNameFromPrimaryVariants(attempts.ToArray()) is string confirmedName)
                 {
                     FrlgTextAttempt[] votes = attempts.Where(a => a.Backend == "PaddleOCR"
@@ -380,6 +386,22 @@ public sealed class FrlgTextReader : IDisposable
             && paddle.Count(a => a.Distance <= 1 && a.Confidence >= .85) >= 2
             && tesseract.Any(a => a.Distance == 0 && a.Confidence >= .70)
             && paddle.Concat(tesseract).Select(a => a.Candidate).Distinct().Count() == 1;
+    }
+
+    internal static string? ConfirmedNatureFromPrimaryVariants(FrlgTextAttempt[] attempts)
+    {
+        IGrouping<string, FrlgTextAttempt>[] candidates = attempts
+            .Where(a => a.Accepted && a.Backend == "PaddleOCR"
+                && a.Distance <= 1 && a.Confidence >= .75)
+            .GroupBy(a => a.Candidate)
+            .OrderByDescending(group => group.Select(a => a.Threshold).Distinct().Count())
+            .ToArray();
+        if (candidates.Length == 0) return null;
+
+        int winnerVotes = candidates[0].Select(a => a.Threshold).Distinct().Count();
+        int runnerUpVotes = candidates.Length > 1
+            ? candidates[1].Select(a => a.Threshold).Distinct().Count() : 0;
+        return winnerVotes >= 3 && winnerVotes - runnerUpVotes >= 2 ? candidates[0].Key : null;
     }
 
     private static Mat FirstNatureClause(Mat image)

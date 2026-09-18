@@ -24,7 +24,7 @@ public static class FrlgOcr
 {
     public const string JapaneseTid = "FRLG_JPN_TID";
     public const string EnglishTid = "FRLG_EN_TID";
-    public const string Version = "170a-frlg-jpn-r11";
+    public const string Version = "170a-frlg-jpn-r12";
 
     public static bool IsScene(string scene) => FrlgScenes.Find(scene) != null;
 

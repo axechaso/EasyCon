@@ -233,6 +233,28 @@ public sealed class FrlgJapaneseTests
     }
 
     [Test]
+    public void NaturePrimaryConsensusAcceptsClearThresholdMajority()
+    {
+        FrlgTextAttempt Attempt(int threshold, string raw)
+        {
+            FrlgWordMatch match = FrlgJapaneseLexicon.Match(raw, true);
+            return new("PaddleOCR", threshold, raw, .90, match.Text, match.Distance,
+                match.Accepted, "", match.Accepted);
+        }
+
+        Assert.That(FrlgTextReader.ConfirmedNatureFromPrimaryVariants(
+            [Attempt(160, "わんばくなせいかく"), Attempt(184, "わんばくなせいかく"),
+                Attempt(208, "わんばくなせいかく"), Attempt(128, "わんばくなせいかい"),
+                Attempt(96, "おばなせい")]), Is.EqualTo("わんぱく"));
+        Assert.That(FrlgTextReader.ConfirmedNatureFromPrimaryVariants(
+            [Attempt(160, "わんぱくなせいかく"), Attempt(184, "わんぱくなせいかく"),
+                Attempt(208, "いじっぱりなせいかく")]), Is.Null);
+        Assert.That(FrlgTextReader.ConfirmedNatureFromPrimaryVariants(
+            [Attempt(160, "わんぱくなせいかく"), Attempt(160, "わんぱくなせいかく"),
+                Attempt(184, "わんぱくなせいかく")]), Is.Null);
+    }
+
+    [Test]
     public void NameConfirmationAcceptsExactPlusIndependentConsistentVote()
     {
         FrlgTextAttempt exact = new("PaddleOCR", 184, "クラブ", .77, "クラブ", 0, true, "");
