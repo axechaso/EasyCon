@@ -311,6 +311,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public ICommand ToggleMonitorPauseCommand { get; }
 
     public ICommand ShowScriptSyntaxCommand { get; }
+    public ICommand OpenFrlgOcrCommand { get; }
     public ICommand OpenAiAgentCommand { get; }
 
     public ICommand ToggleMonitorVisibilityCommand { get; }
@@ -513,6 +514,11 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenMcpConfigCommand = new RelayCommand(OpenMcpConfig);
         ToggleMonitorPauseCommand = new RelayCommand(ToggleMonitorPause);
         ShowScriptSyntaxCommand = new RelayCommand(ShowScriptSyntax);
+        OpenFrlgOcrCommand = new RelayCommand(() => _windowService.ShowFrlgOcrWindow(() =>
+        {
+            using FrameLease? lease = _captureService.AcquireLatestFrame();
+            return lease?.Mat.ToBytes();
+        }));
         OpenAiAgentCommand = new RelayCommand(OpenAiAgent);
         ToggleMonitorVisibilityCommand = new RelayCommand(ToggleMonitorVisibility);
         SelectEditorTabCommand = new RelayCommand<string>(SelectEditorTab);

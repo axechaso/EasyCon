@@ -16,11 +16,13 @@
     <File Path="docs/DESIGN_DOCUMENT.md" />
   </Folder>
   <Folder Name="/Test/">
+    <Project Path="test/FrlgOcr.Ui.Tests/FrlgOcr.Ui.Tests.csproj" />
     <Project Path="test/EasyCon.Tests/EasyCon.Tests.csproj" />
     <Project Path="test/EasyCon.WinInput.Tests/EasyCon.WinInput.Tests.csproj" />
     <Project Path="test/EasyCon.Lsp.Tests/EasyCon.Lsp.Tests.csproj" />
   </Folder>
   <Folder Name="/Demo/">
+    <Project Path="tools/FrlgOcrReplay/FrlgOcrReplay.csproj" />
     <Project Path="tools/OpenCvDnnDemo/OpenCvDnnDemo.csproj" />
   </Folder>
   <Folder Name="/Lib/">

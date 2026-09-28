@@ -1,0 +1,222 @@
+using EasyCon.Core.Runner;
+using EasyCon.Script;
+using EasyCon.Tests.Support;
+
+namespace EasyCon.Tests;
+
+[TestFixture]
+public sealed class FrlgFfiDevSmokeTest
+{
+    [TestCase("摘要第一页只读.ecs", "Page1/bulbasaur_1_jpn.png")]
+    [TestCase("摘要第二页只读.ecs", "Page2/deoxys_1_jpn.png")]
+    [TestCase("训练家卡TID只读.ecs", "nyash_jpn_45345.png")]
+    public void ReadOnlyScriptsOutputRecognizedValuesInOriginalScriptConsole(string scriptName, string fixture)
+    {
+        string? root = Environment.GetEnvironmentVariable("FRLG_FFI_READONLY");
+        string? fixtures = Environment.GetEnvironmentVariable("FRLG_FFI_FIXTURES");
+        if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(fixtures))
+            Assert.Ignore("Local read-only FRLG FFI scripts and fixtures are not configured.");
+
+        CompileResult result = Compilation.CompileFile(Path.Combine(root!, scriptName),
+            new CompileOptions { UseDiskCache = false });
+        Assert.That(result.Image, Is.Not.Null,
+            () => string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.That(result.KeyAction, Is.False);
+        Assert.That(result.NeedIL, Is.False);
+
+        string pngBase64 = Convert.ToBase64String(File.ReadAllBytes(Path.Combine(fixtures!, fixture)));
+        RecordingIo output = new();
+        EcxVm.Run(result.Image!, EcsTestHost.Capabilities(output, frame: (_, _, _, _) => pngBase64),
+            CancellationToken.None, [], result.NativeSymbols);
+        string[] expected = scriptName switch
+        {
+            "摘要第一页只读.ecs" => ["名称", "フシギダネ", "性格", "のうてんき", "等级", "6"],
+            "摘要第二页只读.ecs" => ["HP", "70", "攻击", "119", "防御", "21", "特攻", "119", "特防", "23", "速度", "107"],
+            _ => ["TID", "45345"]
+        };
+        Assert.That(output.Lines, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void WildReadOnlyScriptCompilesWithoutSendingKeys()
+    {
+        string? root = Environment.GetEnvironmentVariable("FRLG_FFI_READONLY");
+        if (string.IsNullOrEmpty(root))
+            Assert.Ignore("Local read-only FRLG FFI scripts are not configured.");
+
+        CompileResult result = Compilation.CompileFile(Path.Combine(root!, "野生名称等级只读.ecs"),
+            new CompileOptions { UseDiskCache = false });
+        Assert.That(result.Image, Is.Not.Null,
+            () => string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.That(result.KeyAction, Is.False);
+        Assert.That(result.NeedIL, Is.False);
+    }
+
+    [Test]
+    public void WildReadOnlyScriptReadsCachedCapture()
+    {
+        string? root = Environment.GetEnvironmentVariable("FRLG_FFI_READONLY");
+        string? sample = Environment.GetEnvironmentVariable("FRLG_FFI_WILD_SAMPLE");
+        if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(sample))
+            Assert.Ignore("Local wild battle capture is not configured.");
+
+        CompileResult result = Compilation.CompileFile(Path.Combine(root!, "野生名称等级只读.ecs"),
+            new CompileOptions { UseDiskCache = false });
+        Assert.That(result.Image, Is.Not.Null,
+            () => string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        string pngBase64 = Convert.ToBase64String(File.ReadAllBytes(sample!));
+        RecordingIo output = new();
+        EcxVm.Run(result.Image!, EcsTestHost.Capabilities(output, frame: (_, _, _, _) => pngBase64),
+            CancellationToken.None, [], result.NativeSymbols);
+        Assert.That(output.Lines, Is.EqualTo(new[] { "野生名称", "ニドラン♀", "野生等级", "22" }));
+    }
+
+    [Test]
+    public void JapaneseRegionWrapperCallsPluginWithoutRestOfPrivateFlow()
+    {
+        string? dist = Environment.GetEnvironmentVariable("FRLG_FFI_DIST");
+        string? fixtures = Environment.GetEnvironmentVariable("FRLG_FFI_FIXTURES");
+        string? region = Environment.GetEnvironmentVariable("FRLG_FFI_REGION_MODULE");
+        if (string.IsNullOrEmpty(dist) || string.IsNullOrEmpty(fixtures) || string.IsNullOrEmpty(region))
+            Assert.Ignore("Local FRLG FFI plugin and region module are not configured.");
+
+        string directory = Path.Combine(Path.GetTempPath(), $"FrlgFfiRegion_{Guid.NewGuid():N}");
+        string lib = Path.Combine(directory, "lib");
+        Directory.CreateDirectory(lib);
+        try
+        {
+            File.Copy(Path.Combine(dist!, "lib", "FrlgFfi.ecs"), Path.Combine(lib, "FrlgFfi.ecs"));
+            File.Copy(region!, Path.Combine(lib, "33_日版OCR区域.ecs"));
+            string main = Path.Combine(directory, "main.ecs");
+            File.WriteAllText(main, "$result = 日版单次读取(3)\nPRINT $result\n");
+            CompileResult result = Compilation.CompileFile(main, new CompileOptions { UseDiskCache = false });
+            Assert.That(result.Image, Is.Not.Null,
+                () => string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+            string sample = Path.Combine(fixtures!, "Page1", "bulbasaur_1_jpn.png");
+            string pngBase64 = Convert.ToBase64String(File.ReadAllBytes(sample));
+            RecordingIo output = new();
+            EcxVm.Run(result.Image!, EcsTestHost.Capabilities(output, frame: (_, _, _, _) => pngBase64),
+                CancellationToken.None, [], result.NativeSymbols);
+            Assert.That(output.Lines, Is.EqualTo(new[] { "6" }));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    [Explicit("The legacy 2.0 Seed table exceeds the dev VM's 255-slot limit; diagnostic only.")]
+    public void FullPrivateScriptCompilesWithPluginModule()
+    {
+        string? script = Environment.GetEnvironmentVariable("FRLG_FFI_SCRIPT");
+        if (string.IsNullOrEmpty(script))
+            Assert.Ignore("The local FRLG FFI script copy is not configured.");
+
+        CompileResult result = Compilation.CompileFile(script, new CompileOptions { UseDiskCache = false });
+        Assert.That(result.Image, Is.Not.Null,
+            () => string.Join("\n", result.Diagnostics.Select(d => $"{d.Location.StartLine + 1}: {d.Message}")));
+        Assert.That(result.NativeSymbols.Any(s => s.ExternalName == "frlg_read"), Is.True);
+    }
+
+    [Test]
+    public void GeneratedPluginModuleIsAutoLoadedFromLibDirectory()
+    {
+        string? dist = Environment.GetEnvironmentVariable("FRLG_FFI_DIST");
+        string? fixtures = Environment.GetEnvironmentVariable("FRLG_FFI_FIXTURES");
+        if (string.IsNullOrEmpty(dist) || string.IsNullOrEmpty(fixtures))
+            Assert.Ignore("Local FRLG FFI artifact and sample are not configured.");
+
+        string module = Path.Combine(dist!, "lib", "FrlgFfi.ecs");
+        Assert.That(File.Exists(module), Is.True);
+        string directory = Path.Combine(Path.GetTempPath(), $"FrlgFfiModule_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(directory, "lib"));
+        try
+        {
+            File.Copy(module, Path.Combine(directory, "lib", "FrlgFfi.ecs"));
+            string main = Path.Combine(directory, "main.ecs");
+            File.WriteAllText(main, """
+                $text = FRLG_OCR("FRLG_JPN_LEVEL", 269, 121, 202, 87)
+                PRINT $text
+                $closed = FRLG_Shutdown()
+                """);
+            CompileResult result = Compilation.CompileFile(main, new CompileOptions { UseDiskCache = false });
+            Assert.That(result.Image, Is.Not.Null,
+                () => string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.NativeSymbols.Any(s => s.ExternalName == "frlg_read"), Is.True);
+
+            string sample = Path.Combine(fixtures!, "Page1", "bulbasaur_1_jpn.png");
+            string pngBase64 = Convert.ToBase64String(File.ReadAllBytes(sample));
+            RecordingIo output = new();
+            EcxVm.Run(result.Image!, EcsTestHost.Capabilities(output, frame: (_, _, _, _) => pngBase64),
+                CancellationToken.None, [], result.NativeSymbols);
+            Assert.That(output.Lines, Is.EqualTo(new[] { "6" }));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [TestCase("Page1/bulbasaur_1_jpn.png", "FRLG_JPN_SUMMARY_NAME", 1254, 224, 408, 72, "フシギダネ")]
+    [TestCase("Page1/bulbasaur_1_jpn.png", "FRLG_JPN_NATURE", 256, 782, 715, 73, "のうてんき")]
+    [TestCase("Page1/bulbasaur_1_jpn.png", "FRLG_JPN_LEVEL", 269, 121, 202, 87, "6")]
+    [TestCase("Page1/deoxys_1_jpn.png", "FRLG_JPN_SUMMARY_NAME", 1254, 224, 408, 72, "デオキシス")]
+    [TestCase("Page1/deoxys_1_jpn.png", "FRLG_JPN_NATURE", 256, 782, 715, 73, "しんちょう")]
+    [TestCase("Page1/deoxys_1_jpn.png", "FRLG_JPN_LEVEL", 269, 121, 202, 87, "30")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_HP", 1294, 137, 429, 78, "70")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_ATTACK", 1516, 253, 198, 79, "119")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_DEFENSE", 1516, 337, 198, 79, "21")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SP_ATTACK", 1516, 421, 198, 79, "119")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SP_DEFENSE", 1516, 505, 198, 79, "23")]
+    [TestCase("Page2/deoxys_1_jpn.png", "FRLG_JPN_SPEED", 1516, 588, 198, 79, "107")]
+    [TestCase("Page1/bulbasaur_1_jpn.png", "FRLG_JPN_SUMMARY_NAME:ハクリュー", 1254, 224, 408, 72, "")]
+    public void NativeFfiReceivesFrameAndReturnsJapaneseText(string file, string scene,
+        int x, int y, int width, int height, string expected)
+    {
+        string? dist = Environment.GetEnvironmentVariable("FRLG_FFI_DIST");
+        string? fixtures = Environment.GetEnvironmentVariable("FRLG_FFI_FIXTURES");
+        if (string.IsNullOrEmpty(dist) || string.IsNullOrEmpty(fixtures))
+            Assert.Ignore("Local FRLG FFI artifact and sample are not configured.");
+
+        string dll = Path.Combine(dist!, "FrlgFfi.dll").Replace('\\', '/');
+        string models = Path.Combine(dist, "models", "frlg").Replace('\\', '/');
+        string pngBase64 = Convert.ToBase64String(File.ReadAllBytes(Path.Combine(fixtures!, file)));
+        string source = $"""
+            EXTERN FUNC FRLG_Read($frame:STRING, $scene:STRING, $x:INT, $y:INT, $w:INT, $h:INT, $models:STRING):STRING AS "frlg_read" FROM "{dll}"
+            EXTERN FUNC FRLG_LastError():STRING AS "frlg_last_error" FROM "{dll}"
+            EXTERN FUNC FRLG_LastDebug():STRING AS "frlg_last_debug" FROM "{dll}"
+            EXTERN FUNC FRLG_Shutdown():INT AS "frlg_shutdown" FROM "{dll}"
+            $frame = FRAME()
+            $text = FRLG_Read($frame, "{scene}", {x}, {y}, {width}, {height}, "{models}")
+            PRINT $text
+            $error = FRLG_LastError()
+            PRINT $error
+            $debug = FRLG_LastDebug()
+            PRINT $debug
+            $closed = FRLG_Shutdown()
+            """;
+
+        CompileResult result = Compilation.CompileSource(source,
+            new CompileOptions { UseDiskCache = false });
+        Assert.That(result.Image, Is.Not.Null,
+            () => string.Join("\n", result.Diagnostics.Select(d => $"{d.Location.StartLine + 1}: {d.Message}")));
+
+        RecordingIo output = new();
+        try
+        {
+            EcxVm.Run(result.Image!, EcsTestHost.Capabilities(output, frame: (_, _, _, _) => pngBase64),
+                CancellationToken.None, [], result.NativeSymbols);
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail($"{ex.Message}\nImage natives: {string.Join(", ", result.Image!.Natives.Select(n => n.Name))}"
+                + $"\nCompiler symbols: {string.Join(", ", result.NativeSymbols.Select(n => n.LibraryName + "!" + n.ExternalName))}"
+                + $"\nOutput: {string.Join(" / ", output.Lines)}");
+        }
+        Assert.That(output.Lines, Has.Count.EqualTo(3));
+        Assert.That(output.Lines[0], Is.EqualTo(expected), output.Lines[1] + "\n" + output.Lines[2]);
+        Assert.That(output.Lines[1], expected.Length == 0 ? Is.Not.Empty : Is.Empty);
+    }
+}
