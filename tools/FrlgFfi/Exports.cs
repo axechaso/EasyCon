@@ -2,6 +2,7 @@ using EasyCon.Capture.Ocr.Frlg;
 using EzCv;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace FrlgFfi;
@@ -18,6 +19,7 @@ public static unsafe partial class Exports
     private static string? s_modelDirectory;
     private static string? s_nativeDirectory;
     private static readonly Lazy<string> s_pluginDirectory = new(GetPluginDirectory);
+    private static readonly Lazy<string> s_runtimePluginDirectory = new(PrepareRuntimePluginDirectory);
 
     [ThreadStatic]
     private static nint t_returnBuffer;
@@ -184,8 +186,153 @@ public static unsafe partial class Exports
     {
         if (Path.IsPathFullyQualified(modelDirectory))
             return Path.GetFullPath(modelDirectory);
-        return Path.GetFullPath(Path.Combine(s_pluginDirectory.Value, modelDirectory));
+        return Path.GetFullPath(Path.Combine(s_runtimePluginDirectory.Value, modelDirectory));
     }
+
+    private static string PrepareRuntimePluginDirectory()
+    {
+        string sourceDirectory = s_pluginDirectory.Value;
+        if (!ContainsNonAscii(sourceDirectory))
+            return sourceDirectory;
+
+        string? cacheParent = FindAsciiWritableParent(sourceDirectory);
+        if (cacheParent == null)
+            throw new InvalidOperationException("FRLG FFI 目录包含非 ASCII 字符，且找不到可写的纯英文缓存目录。");
+
+        string key = BuildCacheKey(sourceDirectory);
+
+        string runtimeDirectory = Path.Combine(cacheParent, ".frlg-ffi-cache", key, "FrlgFfi");
+        CopyPluginDirectory(sourceDirectory, runtimeDirectory);
+        return runtimeDirectory;
+    }
+
+    private static string? FindAsciiWritableParent(string sourceDirectory)
+    {
+        string? current = Directory.GetParent(Path.GetFullPath(sourceDirectory))?.FullName;
+        while (!string.IsNullOrEmpty(current))
+        {
+            string? writableDirectory = GetAsciiWritableDirectory(current);
+            if (writableDirectory != null)
+                return writableDirectory;
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string commonData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        string[] fallbacks =
+        [
+            Path.Combine(Path.GetTempPath(), "EasyCon", "Cache"),
+            Path.Combine(localData, "EasyCon", "Cache"),
+            Path.Combine(commonData, "EasyCon", "Cache")
+        ];
+        foreach (string fallback in fallbacks)
+        {
+            if (string.IsNullOrWhiteSpace(fallback))
+                continue;
+            string? writableDirectory = GetAsciiWritableDirectory(fallback);
+            if (writableDirectory != null)
+                return writableDirectory;
+        }
+
+        return null;
+    }
+
+    private static string BuildCacheKey(string sourceDirectory)
+    {
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        AppendHashText(hash, Path.GetFullPath(sourceDirectory).ToUpperInvariant());
+
+        IEnumerable<string> files = Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+            .OrderBy(file => Path.GetRelativePath(sourceDirectory, file), StringComparer.OrdinalIgnoreCase);
+        foreach (string file in files)
+        {
+            string relativePath = Path.GetRelativePath(sourceDirectory, file).Replace('\\', '/');
+            FileInfo info = new(file);
+            AppendHashText(hash, relativePath.ToUpperInvariant());
+            hash.AppendData(BitConverter.GetBytes(info.Length));
+            hash.AppendData(BitConverter.GetBytes(info.LastWriteTimeUtc.Ticks));
+
+            if (string.Equals(relativePath, "FrlgFfi.dll", StringComparison.OrdinalIgnoreCase))
+            {
+                using FileStream stream = File.OpenRead(file);
+                hash.AppendData(SHA256.HashData(stream));
+            }
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset())[..16];
+    }
+
+    private static void AppendHashText(IncrementalHash hash, string value)
+        => hash.AppendData(Encoding.UTF8.GetBytes(value));
+
+    private static string? GetAsciiWritableDirectory(string directory)
+    {
+        string fullPath = Path.GetFullPath(directory);
+        if (!CanWriteDirectory(fullPath))
+            return null;
+        if (!ContainsNonAscii(fullPath))
+            return fullPath;
+
+        string? shortPath = GetShortPath(fullPath);
+        return shortPath != null && CanWriteDirectory(shortPath) ? shortPath : null;
+    }
+
+    private static string? GetShortPath(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        const int capacity = 32768;
+        char* buffer = stackalloc char[capacity];
+        uint length = GetShortPathNameW(path, buffer, capacity);
+        if (length == 0 || length >= capacity)
+            return null;
+
+        string shortPath = new(buffer, 0, checked((int)length));
+        return ContainsNonAscii(shortPath) ? null : Path.GetFullPath(shortPath);
+    }
+
+    private static bool CanWriteDirectory(string directory)
+    {
+        try
+        {
+            Directory.CreateDirectory(directory);
+            string probe = Path.Combine(directory, $".frlg-ffi-write-{Guid.NewGuid():N}.tmp");
+            using (FileStream stream = File.Create(probe))
+                stream.WriteByte(0);
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void CopyPluginDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        foreach (string sourceFile in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            string relativePath = Path.GetRelativePath(sourceDirectory, sourceFile);
+            string destinationFile = Path.Combine(destinationDirectory, relativePath);
+            string? parent = Path.GetDirectoryName(destinationFile);
+            if (!string.IsNullOrEmpty(parent))
+                Directory.CreateDirectory(parent);
+
+            FileInfo sourceInfo = new(sourceFile);
+            FileInfo destinationInfo = new(destinationFile);
+            if (!destinationInfo.Exists
+                || destinationInfo.Length != sourceInfo.Length
+                || destinationInfo.LastWriteTimeUtc != sourceInfo.LastWriteTimeUtc)
+            {
+                File.Copy(sourceFile, destinationFile, overwrite: true);
+                File.SetLastWriteTimeUtc(destinationFile, sourceInfo.LastWriteTimeUtc);
+            }
+        }
+    }
+
+    private static bool ContainsNonAscii(string value)
+        => value.Any(character => character > 0x7F);
 
     private static string GetPluginDirectory()
     {
@@ -214,6 +361,10 @@ public static unsafe partial class Exports
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleFileNameW", SetLastError = true)]
     private static partial uint GetModuleFileNameW(nint module, char* fileName, int size);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetShortPathNameW", StringMarshalling = StringMarshalling.Utf16,
+        SetLastError = true)]
+    private static partial uint GetShortPathNameW(string longPath, char* shortPath, int size);
 
     private static string ReadUtf8(byte* pointer, int maximumBytes)
     {
