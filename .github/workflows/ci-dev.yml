@@ -97,3 +97,15 @@ jobs:
           dotnet test test/EasyCon2.Avalonia.UiTests/EasyCon2.Avalonia.UiTests.csproj
           --configuration Debug --no-build
           --filter "FullyQualifiedName~MainWindowSaveTests.CtrlS_SavesLatestEditorTextFromTheFocusedEditor"
+
+      - name: 发布含 issue 70 修复的 Windows x64 程序
+        shell: cmd
+        run: ci\windows-x64.bat
+
+      - name: 上传 Windows x64 程序包
+        uses: actions/upload-artifact@v6
+        with:
+          name: EasyCon2-issue70-win-x64
+          path: dist/publish/
+          if-no-files-found: error
+          retention-days: 7
