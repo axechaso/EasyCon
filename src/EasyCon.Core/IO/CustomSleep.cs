@@ -1,71 +1,116 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+/// <summary>
+/// Blocking delays used by the script and game-pad runtimes.
+///
+/// All deadlines are based on Stopwatch rather than wall-clock time. The
+/// latter can jump when Windows synchronizes the system clock, which used to
+/// make a high-resolution delay finish early or late.
+/// </summary>
 public sealed class CustomDelay
 {
-    private static int CurrTimestamp => (int)(DateTime.Now.Ticks / 10_000);
+    // The high-resolution path spends the final couple of milliseconds
+    // correcting the coarse sleep. The low-CPU path only yields in the last
+    // fraction of a millisecond.
+    private const double HighResolutionSpinMilliseconds = 2.0;
+    private const double LowCpuSpinMilliseconds = 0.2;
 
+    /// <summary>Delay for the requested duration and observe cancellation promptly.</summary>
     public static void Delay(int millisecondsTimeout, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        var curtime = CurrTimestamp;
-        if (millisecondsTimeout >= 40) Task.Delay(millisecondsTimeout - 20, token).Wait(token);
-        while (!token.IsCancellationRequested)
-        {
-            if (CurrTimestamp - curtime >= millisecondsTimeout) break;
-            Thread.Yield();
-        }
+        DelayCore(millisecondsTimeout, token, HighResolutionSpinMilliseconds);
     }
-    /// <summary>
-    /// 跨平台精确毫秒级延迟（误差通常 < 2ms）
-    /// </summary>
-    /// <param name="milliseconds">要延迟的毫秒数</param>
+
+    /// <summary>Delay with low CPU usage while retaining a monotonic deadline.</summary>
     public static void AISleep(int milliseconds)
     {
-        if (milliseconds <= 0) return;
+        if (milliseconds <= 0)
+            return;
 
-        var sw = Stopwatch.StartNew();
-        long targetTicks = (long)(milliseconds * (double)Stopwatch.Frequency / 1000.0);
-        long remainingTicks = targetTicks;
+        DelayCore(milliseconds, CancellationToken.None, LowCpuSpinMilliseconds);
+    }
 
-        // 如果剩余时间 > 5ms，先使用平台特定高精度睡眠
-        if (remainingTicks > Stopwatch.Frequency / 200) // 5ms
+    private static void DelayCore(int milliseconds, CancellationToken token, double spinMilliseconds)
+    {
+        if (milliseconds <= 0)
+            return;
+
+        var deadline = Stopwatch.GetTimestamp() + MillisecondsToTicks(milliseconds);
+        var spinTicks = MillisecondsToTicks(spinMilliseconds);
+
+        while (true)
         {
-            // 预留 2-3ms 给最后自旋
-            double remainingMilliseconds = remainingTicks * 1000.0 / Stopwatch.Frequency;
-            int sleepMs = Math.Max(1, (int)(remainingMilliseconds - 3));
+            token.ThrowIfCancellationRequested();
 
-            // 调用平台特定的高精度睡眠
-            HighResolutionSleep(sleepMs);
+            var remaining = deadline - Stopwatch.GetTimestamp();
+            if (remaining <= 0)
+                return;
 
-            // 重新计算剩余时间
-            remainingTicks = targetTicks - sw.ElapsedTicks;
-        }
-
-        // 最后自旋微调（精度关键阶段）
-        while (remainingTicks > 0)
-        {
-            if (remainingTicks <= Stopwatch.Frequency / 5000) // 剩余 < 0.2ms，极短自旋
+            if (remaining > spinTicks)
             {
-                Thread.SpinWait(1);
+                // Leave a small margin for the scheduler. The final loop is
+                // responsible for hitting the monotonic deadline exactly.
+                var remainingMilliseconds = remaining * 1000.0 / Stopwatch.Frequency;
+                var coarseMilliseconds = Math.Max(1, (int)Math.Floor(remainingMilliseconds - 1.0));
+                WaitCoarsely(coarseMilliseconds, token);
+                continue;
+            }
+
+            if (spinMilliseconds >= 1.0)
+                Thread.SpinWait(64);
+            else
+                Thread.Yield();
+        }
+    }
+
+    private static long MillisecondsToTicks(double milliseconds)
+    {
+        return Math.Max(1, (long)Math.Ceiling(milliseconds * Stopwatch.Frequency / 1000.0));
+    }
+
+    private static void WaitCoarsely(int milliseconds, CancellationToken token)
+    {
+        if (token.CanBeCanceled)
+        {
+            var canceled = false;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                TimeBeginPeriod(1);
+                try
+                {
+                    canceled = token.WaitHandle.WaitOne(milliseconds);
+                }
+                finally
+                {
+                    TimeEndPeriod(1);
+                }
             }
             else
             {
-                Thread.Yield(); // 主动让出CPU，但保持就绪状态
+                canceled = token.WaitHandle.WaitOne(milliseconds);
             }
-            remainingTicks = targetTicks - sw.ElapsedTicks;
+
+            if (canceled)
+                token.ThrowIfCancellationRequested();
+            return;
         }
+
+        HighResolutionSleep(milliseconds);
     }
+
     /// <summary>
-    /// 平台特定的高精度睡眠实现
+    /// Platform-specific coarse sleep. The monotonic deadline in DelayCore
+    /// removes any residual scheduler overshoot.
     /// </summary>
     private static void HighResolutionSleep(int milliseconds)
     {
-        if (milliseconds <= 0) return;
+        if (milliseconds <= 0)
+            return;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // Windows: 使用 timeBeginPeriod + Sleep
             TimeBeginPeriod(1);
             try
             {
@@ -79,8 +124,11 @@ public sealed class CustomDelay
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
                  RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            // Linux/macOS: 使用 nanosleep 实现微秒级精度
             Nanosleep(milliseconds * 1_000_000L);
+        }
+        else
+        {
+            Thread.Sleep(milliseconds);
         }
     }
 
@@ -91,41 +139,31 @@ public sealed class CustomDelay
     private static extern uint TimeEndPeriod(uint period);
 
     [DllImport("libc", SetLastError = true, EntryPoint = "nanosleep")]
-    private static extern int Nanosleep(ref Timespec req, ref Timespec rem);
+    private static extern int NanosleepNative(ref Timespec req, out Timespec rem);
 
     private static void Nanosleep(long nanoseconds)
     {
-        var req = new Timespec
+        var request = new Timespec
         {
             tv_sec = nanoseconds / 1_000_000_000,
             tv_nsec = nanoseconds % 1_000_000_000
         };
-        var rem = new Timespec();
 
-        // nanosleep 可能被信号中断，需要循环处理
-        while (nanosleep(req.tv_sec, req.tv_nsec))
+        while (NanosleepNative(ref request, out var remaining) != 0)
         {
-            req = rem;
+            // nanosleep may be interrupted by a signal. Retry with the
+            // remaining duration; for any other failure the deadline loop
+            // still guarantees that the caller will not return early.
+            if (Marshal.GetLastWin32Error() != 4) // EINTR
+                break;
+            request = remaining;
         }
-    }
-
-    private static bool nanosleep(long sec, long nsec)
-    {
-        var req = new Timespec { tv_sec = sec, tv_nsec = nsec };
-        var rem = new Timespec();
-        int result = Nanosleep(ref req, ref rem);
-
-        if (result == 0) return false; // 成功完成
-
-        // 被信号中断，继续睡眠剩余时间
-        req = rem;
-        return true;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Timespec
     {
-        public long tv_sec;   // 秒
-        public long tv_nsec;  // 纳秒
+        public long tv_sec;
+        public long tv_nsec;
     }
 }

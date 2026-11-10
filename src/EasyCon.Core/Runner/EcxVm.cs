@@ -5,6 +5,7 @@ using EasyCon.Script.Bytecode;
 using EasyCon.Script.Symbols;
 using EasyScript;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace EasyCon.Core.Runner;
 
@@ -26,7 +27,7 @@ public static class EcxVm
     public static Value Run(EcxImage image, CapabilitySet capabilities, CancellationToken token,
         string[]? args = null, ImmutableArray<FunctionSymbol> nativeSymbols = default)
     {
-        var startTicks = DateTime.Now.Ticks;
+        var startTicks = Stopwatch.GetTimestamp();
         var rand = new Random();
 
         var externMap = new Dictionary<(string Lib, string Name), FunctionSymbol>();
@@ -115,7 +116,11 @@ public static class EcxVm
             Args = capabilities.Environment?.Args ?? args ?? [],
             AppDir = capabilities.Environment?.AppDir ?? AppDomain.CurrentDomain.BaseDirectory,   // __APP__
             WaitMs = ms => CustomDelay.Delay(ms, token),
-            TimeMs = () => (int)((DateTime.Now.Ticks - startTicks) / 10_000),
+            TimeMs = () =>
+            {
+                var elapsedMilliseconds = Stopwatch.GetElapsedTime(startTicks).TotalMilliseconds;
+                return (int)Math.Clamp(elapsedMilliseconds, 0, int.MaxValue);
+            },
             Rand = max => rand.Next(max),
             ImgLabel = name => vision != null
                 ? vision.MatchLabel(name)
