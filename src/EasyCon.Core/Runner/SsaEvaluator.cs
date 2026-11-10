@@ -41,7 +41,7 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     private TaggedValue[] _constCache = [];
 
     private readonly string[] _args;
-    private readonly long _TIME = DateTime.Now.Ticks;
+    private readonly long _timeOrigin = Stopwatch.GetTimestamp();
     private readonly Random _rand = new();
     private bool _cancelLineBreak = false;
     private CancellationToken _token;
@@ -66,7 +66,14 @@ public sealed class SsaEvaluator : IEvalContext, IDisposable
     OcrInitDelegate? IEvalContext.OcrInit => OcrInit;
     Func<int> IEvalContext.OcrConf => OcrConf;
     Random IEvalContext.Rand => _rand;
-    int IEvalContext.Timestamp => (int)((DateTime.Now.Ticks - _TIME) / 10_000);
+    int IEvalContext.Timestamp
+    {
+        get
+        {
+            var elapsedMilliseconds = Stopwatch.GetElapsedTime(_timeOrigin).TotalMilliseconds;
+            return (int)Math.Clamp(elapsedMilliseconds, 0, int.MaxValue);
+        }
+    }
     bool IEvalContext.CancelLineBreak { get => _cancelLineBreak; set => _cancelLineBreak = value; }
     string[] IEvalContext.Args => _args;
 
