@@ -11,4 +11,5 @@ public interface IWindowService
     void ShowMcpConfigWindow();
     void ShowKeyMappingWindow();
     void ShowScriptSyntaxWindow();
+    void ShowFrlgOcrWindow(Func<byte[]?> captureFrame);
 }

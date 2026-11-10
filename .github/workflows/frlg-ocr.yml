@@ -1,0 +1,49 @@
+name: FRLG OCR 170a
+
+on:
+  push:
+    branches: [frlg-ocr-170a]
+  pull_request:
+    branches: [frlg-ocr-170a-base]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frlg-ocr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Fetch and verify pinned models and resources
+        run: python tools/FrlgOcrReplay/fetch_resources.py
+      - name: Build
+        run: dotnet build EasyCon2.slnx -c Release
+      - name: Verify formatting
+        # Check formatting/errors without rewriting pre-existing async lifecycle analyzer warnings.
+        run: dotnet format EasyCon2.slnx --verify-no-changes --no-restore --severity error
+      - name: Test
+        run: dotnet test EasyCon2.slnx -c Release --no-build --logger trx
+      - name: Publish standalone Windows package
+        run: ./tools/FrlgOcrReplay/publish.ps1 -OutputDirectory artifacts/release/publish
+      - uses: actions/upload-artifact@v7
+        with:
+          name: EasyCon-170a-FRLG-OCR-JPN-r3-win-x64
+          path: artifacts/release/EasyCon-170a-FRLG-OCR-JPN-r3-win-x64.zip
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: frlg-ocr-tests
+          path: |
+            test/**/TestResults/**
+            **/frlg-ocr-window.png

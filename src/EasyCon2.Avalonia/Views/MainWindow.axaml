@@ -404,10 +404,10 @@
                                                        Width="13" Height="13"/>
                                         </Button>
                                     </StackPanel>
-                                    <Button Grid.Column="2"
-                                            Classes="flat-link"
-                                            Content="脚本语法"
-                                            Command="{Binding ShowScriptSyntaxCommand}"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                        <Button Classes="flat-link" Content="FRLG OCR" Command="{Binding OpenFrlgOcrCommand}" />
+                                        <Button Classes="flat-link" Content="脚本语法" Command="{Binding ShowScriptSyntaxCommand}" />
+                                    </StackPanel>
                                     <Border Grid.Column="3"
                                             Classes="help-dot"
                                             Margin="6,0,0,0"
@@ -846,6 +846,7 @@
                                         Content="脚本语法"
                                         Command="{Binding ShowScriptSyntaxCommand}"
                                         Margin="6,0,0,0"/>
+                                <Button Classes="flat-link" Content="FRLG OCR" Command="{Binding OpenFrlgOcrCommand}" Margin="6,0,0,0" />
                             </StackPanel>
                         </Grid>
 

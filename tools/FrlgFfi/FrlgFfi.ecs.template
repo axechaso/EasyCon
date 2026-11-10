@@ -1,0 +1,11 @@
+# EasyCon resolves this path from the main script directory. FrlgFfi resolves
+# its model path from the native plugin directory.
+EXTERN FUNC FRLG_Version():STRING AS "frlg_version" FROM "FrlgFfi/FrlgFfi.dll"
+EXTERN FUNC FRLG_Read($frame:STRING, $scene:STRING, $x:INT, $y:INT, $w:INT, $h:INT, $models:STRING):STRING AS "frlg_read" FROM "FrlgFfi/FrlgFfi.dll"
+EXTERN FUNC FRLG_LastError():STRING AS "frlg_last_error" FROM "FrlgFfi/FrlgFfi.dll"
+EXTERN FUNC FRLG_LastDebug():STRING AS "frlg_last_debug" FROM "FrlgFfi/FrlgFfi.dll"
+EXTERN FUNC FRLG_Shutdown():INT AS "frlg_shutdown" FROM "FrlgFfi/FrlgFfi.dll"
+
+FUNC FRLG_OCR($scene:STRING, $x:INT, $y:INT, $w:INT, $h:INT):STRING
+    RETURN FRLG_Read(FRAME(), $scene, $x, $y, $w, $h, "models/frlg")
+ENDFUNC
