@@ -27,7 +27,33 @@ public sealed class CustomDelay
     public static void HighResolutionDelay(int millisecondsTimeout, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        DelayCore(millisecondsTimeout, token, HighResolutionSpinMilliseconds);
+        if (millisecondsTimeout <= 0)
+            return;
+
+        // Match the 1.6.3 high-resolution scheduling shape. The coarse wait
+        // yields the thread, then Stopwatch provides the monotonic cutoff.
+        long start = Stopwatch.GetTimestamp();
+        if (millisecondsTimeout >= 40)
+        {
+            int coarseMilliseconds = millisecondsTimeout - 20;
+            try
+            {
+                Task.Delay(coarseMilliseconds, token).GetAwaiter().GetResult();
+            }
+            catch (TaskCanceledException)
+            {
+                token.ThrowIfCancellationRequested();
+                throw;
+            }
+        }
+
+        long deadline = start + MillisecondsToTicks(millisecondsTimeout);
+        while (Stopwatch.GetTimestamp() < deadline)
+        {
+            token.ThrowIfCancellationRequested();
+            Thread.Yield();
+        }
+        token.ThrowIfCancellationRequested();
     }
 
     /// <summary>Delay with low CPU usage while retaining a monotonic deadline.</summary>
