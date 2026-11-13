@@ -111,11 +111,16 @@ public static class EcxVm
         IPadInput? input = capabilities.Input;
         IVisionService? vision = capabilities.Vision;
         IConsoleIo? console = capabilities.Console;
+        bool highResolutionTiming = capabilities.HighResolutionTiming;
         return new EcxHost
         {
             Args = capabilities.Environment?.Args ?? args ?? [],
             AppDir = capabilities.Environment?.AppDir ?? AppDomain.CurrentDomain.BaseDirectory,   // __APP__
-            WaitMs = ms => CustomDelay.Delay(ms, token),
+            WaitMs = ms =>
+            {
+                if (highResolutionTiming) CustomDelay.HighResolutionDelay(ms, token);
+                else CustomDelay.Delay(ms, token);
+            },
             TimeMs = () =>
             {
                 var elapsedMilliseconds = Stopwatch.GetElapsedTime(startTicks).TotalMilliseconds;

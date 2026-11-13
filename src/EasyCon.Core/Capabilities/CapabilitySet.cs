@@ -10,6 +10,9 @@ public sealed class CapabilitySet
     /// <summary>L1 键鼠摇杆（WAIT/KEY/KEYST/STICK/STICKC/AMIIBO）。</summary>
     public IPadInput? Input { get; set; }
 
+    /// <summary>Opt-in script timing; false preserves the existing WAIT path.</summary>
+    public bool HighResolutionTiming { get; set; }
+
     /// <summary>PRINT/ALERT。</summary>
     public IConsoleIo? Console { get; set; }
 

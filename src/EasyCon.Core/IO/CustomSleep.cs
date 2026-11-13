@@ -23,6 +23,13 @@ public sealed class CustomDelay
         DelayCore(millisecondsTimeout, token, HighResolutionSpinMilliseconds);
     }
 
+    /// <summary>Opt-in high-resolution wait with a monotonic cutoff.</summary>
+    public static void HighResolutionDelay(int millisecondsTimeout, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        DelayCore(millisecondsTimeout, token, HighResolutionSpinMilliseconds);
+    }
+
     /// <summary>Delay with low CPU usage while retaining a monotonic deadline.</summary>
     public static void AISleep(int milliseconds)
     {

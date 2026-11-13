@@ -20,3 +20,9 @@ public interface IPadInput
 
     void ChangeAmiibo(uint index);
 }
+
+/// <summary>Optional timing profile exposed by real script input ports.</summary>
+public interface IPadTiming
+{
+    DelayType DelayMethod { get; }
+}

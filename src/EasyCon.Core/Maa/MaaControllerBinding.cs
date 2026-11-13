@@ -1,6 +1,7 @@
 #nullable enable
 using EasyCon.Capture;
 using EasyCon.Core.Input;
+using EasyScript;
 using MaaFramework.Binding;
 using MaaFramework.Binding.Buffers;
 using MaaFramework.Binding.Custom;
@@ -79,6 +80,7 @@ public sealed class MaaControllerBinding : IDisposable
     public bool RequiresInput => _pad != null;
     public bool RequiresCapture => _frames != null;
     internal bool HasNative => _native.IsValueCreated;
+    internal bool HasDirectInput { get; private set; }
     public string LastNativeStatus { get; private set; } = "NotStarted";
     public bool IsInitialized => _native.IsValueCreated && _tasker?.IsInitialized == true;
     public bool BindingReady
@@ -124,6 +126,31 @@ public sealed class MaaControllerBinding : IDisposable
         }
     }
 
+    // Share the binding gate with Shell and Stop so cleanup cannot overtake
+    // a direct pulse. Only a bound high-resolution script may use this path.
+    internal ControllerReply SendHighResolution(ControllerCommand command, CancellationToken token)
+    {
+        if (_pad == null || _owner?.RunId == null)
+            throw new ControllerOperationException("InvalidOwner", "高精度直通需要运行租约");
+        if (command.Timing != DelayType.HighResolution || command.Op is not ("input.down" or "input.up" or "input.pulse"))
+            throw new ControllerOperationException("UnsupportedOperation", "高精度直通仅支持按键和摇杆");
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_stopped) throw new ControllerOperationException("StaleEpoch", "运行已停止");
+            _pad.Validate(_owner);
+            token.ThrowIfCancellationRequested();
+            HasDirectInput = true;
+            command = command with { RunId = _owner.RunId, Epoch = _owner.Epoch };
+            ControllerReply reply = _pad.Execute(command, _owner, token);
+            token.ThrowIfCancellationRequested();
+            _owner.Token.ThrowIfCancellationRequested();
+            if (!reply.Accepted)
+                throw new ControllerOperationException(reply.ErrorCode ?? "InputFailed", reply.Value ?? "控制器拒绝操作");
+            return reply;
+        }
+    }
+
     /// <summary>不跨队列传 Mat；同一租约的 PNG 编码仅保留在其帧槽内。</summary>
     public byte[] Screenshot()
     {
@@ -143,7 +170,11 @@ public sealed class MaaControllerBinding : IDisposable
     internal bool ReleaseInput()
     {
         if (_pad == null) return true;
-        lock (_gate) return Native.Inactive().Wait() == MaaJobStatus.Succeeded;
+        lock (_gate)
+        {
+            if (HasDirectInput && !HasNative) return InactiveForOwner();
+            return Native.Inactive().Wait() == MaaJobStatus.Succeeded;
+        }
     }
 
     public void Stop()
@@ -151,7 +182,11 @@ public sealed class MaaControllerBinding : IDisposable
         lock (_lifecycle)
         {
             if (_disposed || _stopped) return;
-            if (!_native.IsValueCreated) { _stopped = true; return; }
+            if (!_native.IsValueCreated)
+            {
+                lock (_gate) _stopped = true;
+                return;
+            }
             // Stop 先通知原生队列，再等已进入的回调退出；不在回调中等待自身。
             _tasker?.Stop().Wait();
             lock (_gate) { }

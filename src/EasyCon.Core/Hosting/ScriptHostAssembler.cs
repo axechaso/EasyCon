@@ -37,6 +37,9 @@ public sealed class ScriptHostContext
     /// <summary>手柄端口（优先于 <see cref="Pad"/>）；嵌套装配（Flow 节点内跑脚本）用本项避免二次适配。</summary>
     public IPadInput? PadInput { get; init; }
 
+    /// <summary>Explicit timing selection, including scripts that only WAIT.</summary>
+    public bool? HighResolutionTiming { get; init; }
+
     /// <summary>ROI 裁剪委托；与 <see cref="LabelMatch"/> 任一非 null 即装配 <see cref="IVisionService"/>。</summary>
     public RoiDelegate? Roi { get; init; }
 
@@ -185,6 +188,9 @@ public static class ScriptHostAssembler
         var capabilities = new CapabilitySet
         {
             Input = context.PadInput ?? (context.Pad is null ? null : new PadInputAdapter(context.Pad)),
+            HighResolutionTiming = context.HighResolutionTiming ??
+                (context.PadInput != null ? context.PadInput is IPadTiming { DelayMethod: DelayType.HighResolution }
+                    : context.Pad?.DelayMethod == DelayType.HighResolution),
             Console = context.Console,
             Environment = new HostEnvironment(context.Args ?? [], appDir),
             Files = context.Files ?? DesktopFileSystem.Instance,

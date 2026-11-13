@@ -211,7 +211,7 @@ internal sealed class PadSession : IDisposable
     private static void Delay(int duration, DelayType timing, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (timing == DelayType.HighResolution) CustomDelay.Delay(duration, token);
+        if (timing == DelayType.HighResolution) CustomDelay.HighResolutionDelay(duration, token);
         else if (timing == DelayType.Normal) token.WaitHandle.WaitOne(duration);
         else
         {

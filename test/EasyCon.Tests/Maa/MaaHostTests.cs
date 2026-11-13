@@ -495,6 +495,67 @@ public sealed class MaaHostTests
         Assert.Throws<ControllerOperationException>(() => pad.PressButtons(GamePadKey.A));
     }
 
+    [TestCase(DelayType.HighResolution, false)]
+    [TestCase(DelayType.LowCPU, true)]
+    [TestCase(DelayType.Normal, true)]
+    public async Task Pulse_RoutesByMode_AndWritesBothEdges(DelayType timing, bool usesNative)
+    {
+        Connection connection = new();
+        using MaaControllerSession controller = new(new Device(connection));
+        Assert.That(controller.TryConnect("fake:p1-high-resolution"), Is.EqualTo(ControllerConnectResult.Success));
+        using ControllerRunLease run = controller.BeginRun("high-resolution", default);
+        IPadInput pad = controller.CreatePad(timing, run);
+        int writesBefore = connection.Writes.Count;
+
+        Task pulse = Task.Run(() => pad.ClickButtons(GamePadKey.A, 100, run.Token));
+        await WaitForAsync(connection, new SwitchReport { Button = (ushort)SwitchButton.A }, writesBefore);
+        int writesAtPress = connection.Writes.Count;
+        await pulse.WaitAsync(TimeSpan.FromSeconds(3));
+        await WaitForAsync(connection, new SwitchReport(), writesAtPress);
+        Assert.That(run.Binding.HasNative, Is.EqualTo(usesNative));
+    }
+
+    [Test]
+    public async Task HighResolutionHeldInput_StopWritesNeutral_AndStalePortCannotChangeNextRun()
+    {
+        Connection connection = new();
+        using MaaControllerSession controller = new(new Device(connection));
+        Assert.That(controller.TryConnect("fake:high-held"), Is.EqualTo(ControllerConnectResult.Success));
+        using ControllerRunLease old = controller.BeginRun("high-held", default);
+        IPadInput oldPad = controller.CreatePad(DelayType.HighResolution, old);
+        oldPad.PressButtons(GamePadKey.A);
+        oldPad.SetStick(GamePadKey.LS, 0, 128);
+        await WaitForAsync(connection, new SwitchReport { Button = (ushort)SwitchButton.A, LX = 0 });
+        int writes = connection.Writes.Count;
+        Assert.That(await old.StopAsync(), Is.EqualTo(CleanupStatus.Written));
+        await WaitForAsync(connection, new SwitchReport(), writes);
+        Assert.That(old.Binding.HasNative, Is.False);
+
+        using ControllerRunLease current = controller.BeginRun("next", default);
+        controller.CreatePad(DelayType.HighResolution, current).PressButtons(GamePadKey.B);
+        await WaitForAsync(connection, new SwitchReport { Button = (ushort)SwitchButton.B }, writes);
+        Assert.Throws<ControllerOperationException>(() => oldPad.ReleaseButtons(GamePadKey.B));
+        Assert.That(controller.GetReport().Button, Is.EqualTo((ushort)SwitchButton.B));
+    }
+
+    [Test]
+    public async Task HighResolutionOperationCancellation_ReleasesPulse_WithoutCancellingRun()
+    {
+        Connection connection = new();
+        using MaaControllerSession controller = new(new Device(connection));
+        Assert.That(controller.TryConnect("fake:high-operation-cancel"), Is.EqualTo(ControllerConnectResult.Success));
+        using ControllerRunLease run = controller.BeginRun("operation", default);
+        using CancellationTokenSource operation = new();
+        Task pulse = Task.Run(() => controller.CreatePad(DelayType.HighResolution, run)
+            .ClickStick(GamePadKey.LS, 0, 128, 30_000, operation.Token));
+        await WaitForAsync(connection, new SwitchReport { LX = 0 });
+        int writes = connection.Writes.Count;
+        operation.Cancel();
+        Assert.ThrowsAsync<OperationCanceledException>(async () => await pulse.WaitAsync(TimeSpan.FromSeconds(3)));
+        await WaitForAsync(connection, new SwitchReport(), writes);
+        Assert.That(run.Token.IsCancellationRequested, Is.False);
+    }
+
     [Test]
     public async Task CaptureOnly_StopHasNoInputEffect_AndUsesSamePixels()
     {

@@ -333,6 +333,7 @@ public class ScriptService : IScriptService
                 if (needImageRecognition) _captureService.SetCaptureProperties(1920, 1080);
                 _runs.Run("ecs", sourcePath, hasKeyAction, token, scope =>
                 {
+                    bool highResolutionTiming = HighResolutionTiming;
                     var frameDelegate = FrameDelegateFactory.CreateFrame(() => scope.AcquireFrame(_captureService.AcquireLatestFrame));
                     using MaaVisionService? vision = generation == null ? null : new(generation,
                         () => scope.AcquireFrame(_captureService.AcquireLatestFrame), scope.Token);
@@ -342,7 +343,8 @@ public class ScriptService : IScriptService
                     // args 经 HostEnvironment 进入 VM —— 此前 ExecuteScript 的 args 形参被静默丢弃，ARG() 恒为空。
                     using CapabilityLease lease = ScriptHostAssembler.Assemble(new ScriptHostContext
                     {
-                        PadInput = hasKeyAction ? scope.CreatePad(HighResolutionTiming ? DelayType.HighResolution : DelayType.LowCPU) : null,
+                        PadInput = hasKeyAction ? scope.CreatePad(highResolutionTiming ? DelayType.HighResolution : DelayType.LowCPU) : null,
+                        HighResolutionTiming = highResolutionTiming,
                         Console = new ConsoleIoAdapter(_logService, _alertService),
                         Frame = frameDelegate,
                         Roi = MatExtensions.CropBase64,

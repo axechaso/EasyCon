@@ -5,6 +5,35 @@ namespace EasyCon.Tests;
 [TestFixture]
 public sealed class CustomDelayTests
 {
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(20)]
+    [TestCase(40)]
+    [TestCase(50)]
+    public void HighResolutionDelay_DoesNotFinishEarly(int milliseconds)
+    {
+        Stopwatch watch = Stopwatch.StartNew();
+        CustomDelay.HighResolutionDelay(milliseconds, default);
+        Assert.That(watch.Elapsed.TotalMilliseconds, Is.GreaterThanOrEqualTo(milliseconds));
+    }
+
+    [TestCase(20)]
+    [TestCase(5000)]
+    public void HighResolutionDelay_CancellationPreservesExceptionContract(int milliseconds)
+    {
+        using CancellationTokenSource cancellation = new();
+        cancellation.CancelAfter(5);
+        Assert.Throws<OperationCanceledException>(() => CustomDelay.HighResolutionDelay(milliseconds, cancellation.Token));
+    }
+
+    [Test]
+    public void HighResolutionDelay_PreCancelledZeroWaitStillThrows()
+    {
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => CustomDelay.HighResolutionDelay(0, cancellation.Token));
+    }
+
     [TestCase(20)]
     [TestCase(50)]
     public void Delay_DoesNotReturnBeforeRequestedDuration(int durationMilliseconds)

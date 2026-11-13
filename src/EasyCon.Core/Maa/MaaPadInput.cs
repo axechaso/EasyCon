@@ -6,7 +6,7 @@ using EasyScript;
 namespace EasyCon.Core.Maa;
 
 /// <summary>ECS 六个输入操作的 Maa 适配；延时与释放在同一次可取消 Shell 回调内。</summary>
-public sealed class MaaPadInput : IPadInput
+public sealed class MaaPadInput : IPadInput, IPadTiming
 {
     private readonly MaaControllerSession _session;
     private readonly ControllerRunLease? _run;
@@ -19,14 +19,31 @@ public sealed class MaaPadInput : IPadInput
         _timing = timing;
     }
 
+    public DelayType DelayMethod => _timing;
+
     private void Send(string op, ECKey key, int duration = 0, CancellationToken token = default)
-        => _session.Send(new ControllerCommand
+    {
+        ControllerCommand command = new()
         {
             Op = op,
             Key = ControllerKey.FromKey(key),
             Duration = duration,
             Timing = _timing,
-        }, _run, token);
+        };
+
+        // 1.6.3 executed a high-resolution pulse directly on the device
+        // session: Down -> delay -> Up. Keep that path for high-resolution
+        // runs so every pulse has the same scheduling shape, while leaving
+        // the Maa shell path unchanged for normal/low-CPU runs.
+        if (_timing == DelayType.HighResolution && _run != null &&
+            op is "input.down" or "input.up" or "input.pulse")
+        {
+            _session.ExecuteHighResolution(command, _run, token);
+            return;
+        }
+
+        _session.Send(command, _run, token);
+    }
 
     public void ClickButtons(GamePadKey key, int duration, CancellationToken token)
         => Send("input.pulse", key.ToECKey(), duration, token);

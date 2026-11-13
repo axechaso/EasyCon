@@ -173,11 +173,20 @@ public sealed class MaaControllerSession : IControllerSession
         }
     }
 
+    internal ControllerReply ExecuteHighResolution(ControllerCommand command, ControllerRunLease run,
+        CancellationToken token)
+    {
+        lock (_stateGate)
+            if (_active != run) throw new ControllerOperationException("StaleEpoch", "运行代次已失效");
+
+        return run.Binding.SendHighResolution(command, token);
+    }
+
     internal CleanupStatus EndRun(ControllerRunLease run)
     {
         run.Cancel();
         run.Binding.Stop();
-        bool written = !run.Binding.HasNative && LastCleanup == CleanupStatus.Written || run.Binding.ReleaseInput();
+        bool written = !run.Binding.HasNative && !run.Binding.HasDirectInput && LastCleanup == CleanupStatus.Written || run.Binding.ReleaseInput();
         run.Binding.Dispose();
         lock (_transition)
         {

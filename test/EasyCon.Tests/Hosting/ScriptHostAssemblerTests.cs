@@ -15,6 +15,33 @@ namespace EasyCon.Tests.Hosting;
 [TestFixture]
 public class ScriptHostAssemblerTests
 {
+    [TestCase(DelayType.Normal, false)]
+    [TestCase(DelayType.LowCPU, false)]
+    [TestCase(DelayType.HighResolution, true)]
+    public void Timing_OnlyHighResolutionOptsIntoNewWait(DelayType timing, bool expected)
+    {
+        using CapabilityLease lease = ScriptHostAssembler.Assemble(new ScriptHostContext
+        {
+            Pad = new FakePad { DelayMethod = timing },
+            EnableOcr = false,
+            EnableInference = false,
+        });
+        Assert.That(lease.Capabilities.HighResolutionTiming, Is.EqualTo(expected));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Timing_PureWaitScriptsUseExplicitRunSetting(bool highResolution)
+    {
+        using CapabilityLease lease = ScriptHostAssembler.Assemble(new ScriptHostContext
+        {
+            HighResolutionTiming = highResolution,
+            EnableOcr = false,
+            EnableInference = false,
+        });
+        Assert.That(lease.Capabilities.Input, Is.Null);
+        Assert.That(lease.Capabilities.HighResolutionTiming, Is.EqualTo(highResolution));
+    }
     [Test]
     public void Assemble_FillsDefaults_AndLeavesUnsuppliedCapabilitiesNull()
     {
@@ -32,6 +59,7 @@ public class ScriptHostAssemblerTests
 
             // "null = 不可用"：宿主没给的原料不得静默造替身
             Assert.That(caps.Input, Is.Null);
+            Assert.That(caps.HighResolutionTiming, Is.False);
             Assert.That(caps.Console, Is.Null);
             Assert.That(caps.Capture, Is.Null);
             Assert.That(caps.Vision, Is.Null);
@@ -245,7 +273,7 @@ public class ScriptHostAssemblerTests
     {
         public List<string> Events { get; } = [];
 
-        public DelayType DelayMethod => DelayType.Normal;
+        public DelayType DelayMethod { get; init; } = DelayType.Normal;
 
         public void ClickButtons(GamePadKey key, int duration, CancellationToken token)
             => Events.Add($"click {key} {duration}");

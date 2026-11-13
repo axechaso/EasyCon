@@ -224,8 +224,9 @@ public sealed class HostRunScope : IDisposable
         _cancellation.Dispose();
     }
 
-    private sealed class RunPad(HostRunScope scope, DelayType timing) : IPadInput
+    private sealed class RunPad(HostRunScope scope, DelayType timing) : IPadInput, IPadTiming
     {
+        public DelayType DelayMethod => timing;
         private IPadInput Pad => scope._controller.CreatePad(timing, scope.RequireInput());
         public void ClickButtons(GamePadKey key, int duration, CancellationToken token) => Pad.ClickButtons(key, duration, token);
         public void PressButtons(GamePadKey key) => Pad.PressButtons(key);

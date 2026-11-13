@@ -7,8 +7,9 @@ using OpenCvSharp;
 namespace EasyCon.Core.Capabilities;
 
 /// <summary><see cref="ICGamePad"/> → <see cref="IPadInput"/> 适配。</summary>
-public sealed class PadInputAdapter(ICGamePad pad) : IPadInput
+public sealed class PadInputAdapter(ICGamePad pad) : IPadInput, IPadTiming
 {
+    public DelayType DelayMethod => pad.DelayMethod;
     public void ClickButtons(GamePadKey key, int duration, CancellationToken token)
         => pad.ClickButtons(key, duration, token);
 
