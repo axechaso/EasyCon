@@ -24,7 +24,9 @@ public class ScriptService : IScriptService
     private readonly IScriptEngine _engine = new EasyScriptEngine();
     private readonly HostRunCoordinator _runs;
     private readonly object _runGate = new();
+    private readonly object _compileGate = new();
     private IScriptSession? _session;
+    private IScriptSession? _exportSession;
     private CancellationTokenSource? _cts;
 
     public bool IsRunning { get; private set; }
@@ -69,12 +71,20 @@ public class ScriptService : IScriptService
         {
             // 编译大脚本可达数秒，放线程池执行，避免冻结调用方所在的 UI 线程
             var (session, _) = await Task.Run(() => CompileContent(scriptText, fileName));
-            _session = session;
+            lock (_compileGate)
+            {
+                _session = session;
+                _exportSession = session;
+            }
             return session != null;
         }
         catch (Exception ex)
         {
-            _session = null;
+            lock (_compileGate)
+            {
+                _session = null;
+                _exportSession = null;
+            }
             _logService.AddLog($"编译异常: {ex.Message}");
             return false;
         }
@@ -91,7 +101,9 @@ public class ScriptService : IScriptService
     {
         try
         {
-            CompileResult? compilation = _session?.Info;
+            CompileResult? compilation;
+            lock (_compileGate)
+                compilation = _exportSession?.Info;
             if (compilation == null)
             {
                 _logService.AddLog("ECX 导出失败: 没有可导出的已编译脚本");
